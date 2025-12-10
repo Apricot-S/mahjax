@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MahJax Simulator UI</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>MahJax Human vs AI</h1>
+    <div id="languageToggle" class="language-toggle" role="group" aria-label="Language toggle">
+      <button type="button" data-lang="ja" class="language-btn active">日本語</button>
+      <button type="button" data-lang="en" class="language-btn">English</button>
+    </div>
+    <div id="controls">
+      <label>
+        <span data-i18n="controls.agent">Agent</span>
+        <select id="agentSelect"></select>
+      </label>
+      <label>
+        <span data-i18n="controls.mode">Mode</span>
+        <select id="modeSelect">
+          <option value="hanchan" data-i18n-mode="hanchan">半荘戦</option>
+          <option value="one_round" data-i18n-mode="one_round">一局戦</option>
+        </select>
+      </label>
+      <label>
+        <span data-i18n="controls.humanSeat">Human Seat</span>
+        <select id="seatSelect">
+          <option value="auto" data-i18n-seat="auto">ランダム</option>
+          <option value="0" data-i18n-seat="east">東</option>
+          <option value="1" data-i18n-seat="south">南</option>
+          <option value="2" data-i18n-seat="west">西</option>
+          <option value="3" data-i18n-seat="north">北</option>
+        </select>
+      </label>
+      <label>
+        <span data-i18n="controls.seed">Seed</span>
+        <input id="seedInput" type="number" placeholder="auto" />
+      </label>
+      <label>
+        <span data-i18n="controls.humanName">Human</span>
+        <input id="humanName" type="text" placeholder="You" />
+      </label>
+      <label>
+        <span data-i18n="controls.aiName">AI Base Name</span>
+        <input id="aiName" type="text" placeholder="Agent" />
+      </label>
+      <label>
+        <span data-i18n="controls.aiDelay">AI Delay(ms)</span>
+        <input id="aiDelay" type="number" value="800" min="0" max="4000" />
+      </label>
+      <label class="checkbox">
+        <input id="hideOpponents" type="checkbox" />
+        <span data-i18n="controls.hideOpponents">相手の手牌を隠す</span>
+      </label>
+      <button id="startBtn" data-i18n="controls.start">Start Game</button>
+      <button id="endBtn" class="secondary" data-i18n="controls.end">End Game</button>
+    </div>
+  </header>
+
+  <div id="layoutColumn" role="main">
+    <section class="card" id="boardPane">
+      <div id="statusBar"></div>
+      <div id="board"></div>
+      <div id="interactionArea">
+        <div id="handArea">
+          <h2 id="handTitle">手牌</h2>
+          <div id="handTiles"></div>
+        </div>
+        <div id="actionArea">
+          <h3 id="actionTitle">アクション</h3>
+          <div id="actionButtons"></div>
+          <div id="kanButtons"></div>
+          <div id="callButtons"></div>
+          <div id="advanceButtons"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="infoPane">
+      <div id="scoreboard">
+        <h2 id="scoreTitle">スコア</h2>
+        <table>
+          <thead>
+            <tr id="scoreHeaderRow"></tr>
+          </thead>
+          <tbody id="scoreRows"></tbody>
+        </table>
+      </div>
+      <div id="events">
+        <h2 id="eventsTitle">ログ</h2>
+        <ul id="eventList"></ul>
+      </div>
+    </section>
+  </div>
+
+  <div id="roundSummary">
+    <div class="dialog">
+      <h2 id="summaryTitle">局 結果</h2>
+      <div id="summaryBody"></div>
+      <div style="margin-top:16px; display:flex; gap:12px; justify-content:flex-end;">
+        <button id="summaryContinue">次の局へ</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js" type="module"></script>
+</body>
+</html>
