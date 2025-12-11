@@ -23,4 +23,4 @@ log
 .venv
 *.out
 .venv
-.sh
+*.sh
