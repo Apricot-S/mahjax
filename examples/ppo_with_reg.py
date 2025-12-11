@@ -130,7 +130,7 @@ def calculate_gae(transitions: Transition):
             # Reset accumulators on episode boundary
             gae = jnp.where(done, 0, gae)
             reward_accum = jnp.where(done, 0, reward_accum)
-            has_next_value = jnp.where(done, 0, has_next_value)
+            has_next_value = jnp.where(done, False, has_next_value)
             next_value = jnp.where(done, 0, next_value)
             
             reward_accum = reward_accum + reward
