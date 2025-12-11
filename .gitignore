@@ -22,3 +22,5 @@ wandb
 log
 .venv
 *.out
+.venv
+.sh
