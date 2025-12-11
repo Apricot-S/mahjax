@@ -7,6 +7,7 @@ repo_url: https://github.com/nissymori/mahjax
 copyright: Copyright © MahJax Authors
 
 nav:
+  - Home: index.md
   - Overview:
       - Rules: rule.md
       - UI Guide: ui.md
@@ -23,8 +24,8 @@ theme:
     repo: fontawesome/brands/github
   palette:
     scheme: slate
-    primary: teal
-    accent: deep purple
+    primary: light blue
+    accent: cyan
   font:
     text: Noto Sans
     code: Inconsolata

@@ -1,0 +1,1 @@
+This is gpu-acceralated Japanese-RIICHI-Mahjong RL environment.
