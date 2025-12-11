@@ -49,7 +49,7 @@ class TestSpecialCase(unittest.TestCase):
         self.assertTrue(next_player == 0)
 
 
-    def test_chiho_tsumo(self):
+    def test_blessings(self):
         """
         Test if the player who wins the game is the player who has the highest score.
         """

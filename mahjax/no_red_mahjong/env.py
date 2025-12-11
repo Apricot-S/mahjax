@@ -1513,11 +1513,18 @@ def _tsumo(state: State):
     is_pure_first_turn = _is_first_turn(state._next_deck_ix) & (
         state._n_meld.sum() == 0
     )
-    is_yakuman = (state._fu[c_p, 0] == 0) | is_pure_first_turn  # When Yakuman, fu is 0
+    is_hand_yakuman = (state._fu[c_p, 0] == 0)
+    is_yakuman = is_hand_yakuman | is_pure_first_turn
     fan = state._fan[c_p, 0]
     fan = jnp.where(
-        (state._fu[c_p, 0] == 0), state._fan[c_p, 0] + is_pure_first_turn, fan
-    )  # Check for Yakuman (役満)
+        is_hand_yakuman,
+        fan + is_pure_first_turn,
+        jnp.where(
+            is_pure_first_turn,  # Blessing of the Heaven(天和) and Earth(地和)
+            1,
+            fan,
+        )
+    )
     fan = jnp.where(
         is_yakuman,
         fan,
