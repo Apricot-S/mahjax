@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Data collector for Mahjong BC & Value Learning using Rule-based players.
+Data collector for Mahjong BC using Rule-based players.
 Saves observations, actions, masks, AND returns.
 Optimized for memory efficiency (Small chunks).
 """
