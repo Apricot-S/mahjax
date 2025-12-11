@@ -73,13 +73,12 @@ def act_randomly(rng, legal_action_mask) -> int:
     return jax.random.categorical(rng, logits=logits)
 
 def _advance_after_dummy(state, steps: int = 4):
-    """DUMMY 情報共有を完了させてから（_dummy_count が 0 に戻るまで）返す"""
-    # 仕様上、開始時点 _dummy_count=0 からは 4 ステップで完了（0→2→3→4→0）
-    # 途中から呼ぶ可能性も考えて、最大 steps 回で一旦収束させる簡便版
+    """Advance the state after the dummy sharing is complete."""
+    # If the dummy count is 0, the dummy sharing is complete, so the next round is called.
     for _ in range(steps):
         state = jitted_next_round(state)
         if int(state._dummy_count) == 0:
-            # 共有完了の“通常新局面”になったとみなして早期終了
+            # The dummy sharing is complete, so the next round is called.
             break
     return state
 
@@ -1011,7 +1010,7 @@ class TestEnv(unittest.TestCase):
             _dummy_count=jnp.int8(0),
         )
         state = _advance_after_dummy(state)
-        self.assertEqual(state._honba, 0)          # honba is 0
+        self.assertEqual(state._honba, 1)          # honba is 1
         self.assertEqual(state._dealer, 0)         # dealer is kept
         self.assertEqual(state._round, 0)          # round is kept
         self.assertEqual(state.current_player, 0)  # after dummy sharing, current player is dealer

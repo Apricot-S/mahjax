@@ -1681,10 +1681,14 @@ def _next_round(state: State):
         hora = s._has_won  # (4,)
         is_tempai = s._can_win.any(axis=-1)  # (4,)
         dealer = s._dealer
-
-        will_dealer_continue = jnp.logical_or(is_tempai[dealer], hora[dealer])  # bool
+        is_eight_consecutive_deals = s._honba >= 8  # 8 consecutive deals means the honba moves to the next round
+        has_other_than_dealer_won = hora.any() & ~hora[dealer]
+        will_dealer_continue = jnp.logical_or(is_tempai[dealer] & ~has_other_than_dealer_won, hora[dealer])
+        will_dealer_continue = will_dealer_continue & ~is_eight_consecutive_deals
         next_round = jnp.where(will_dealer_continue, s._round, s._round + 1)
-        next_dealer = jnp.where(will_dealer_continue, dealer, (dealer + 1) % 4)
+        has_winner = hora.any()
+        next_honba = jnp.where(~has_winner | will_dealer_continue, s._honba + 1, 0)  # if there is no winner or the dealer continues, the honba is incremented
+        next_dealer = jnp.where(will_dealer_continue, dealer, (dealer + 1) % 4)  # if the dealer continues, the dealer is kept, otherwise the dealer is incremented
 
         rng, subkey = jax.random.split(s._rng_key)
 
@@ -1695,7 +1699,7 @@ def _next_round(state: State):
             _dealer=next_dealer,
             _seat_wind=_calc_wind(next_dealer),
             _round=next_round,
-            _honba=jnp.where(hora.any(), 0, s._honba + 1),
+            _honba=next_honba,
             _kyotaku=s._kyotaku,
             _score=s._score,
         )

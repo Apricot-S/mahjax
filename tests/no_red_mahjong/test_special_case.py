@@ -3,7 +3,7 @@ import jax
 import jax.numpy as jnp
 from mahjax.no_red_mahjong.action import Action
 from mahjax.no_red_mahjong.state import FIRST_DRAW_IDX
-from mahjax.no_red_mahjong.env import _init, _step, _make_legal_action_mask_after_draw, _make_legal_action_mask_after_draw_w_riichi, _dora_array, _discard, _make_legal_action_mask_after_discard, _next_meld_player, _selfkan, _closed_kan, _added_kan, _open_kan, _pon, _chi, _pass, _riichi, _ron, _tsumo, _accept_riichi, _append_meld, _draw, _pass, _make_legal_action_mask_after_chi, _abortive_draw_normal, _next_round, _kan
+from mahjax.no_red_mahjong.env import _init, _step, _make_legal_action_mask_after_draw, _make_legal_action_mask_after_draw_w_riichi, _dora_array, _discard, _make_legal_action_mask_after_discard, _next_meld_player, _selfkan, _closed_kan, _added_kan, _open_kan, _pon, _chi, _pass, _riichi, _ron, _tsumo, _accept_riichi, _append_meld, _draw, _pass, _make_legal_action_mask_after_chi, _abortive_draw_normal, _next_round, _kan, _next_round
 
 jitted_init = jax.jit(_init)
 jitted_step = jax.jit(_step)
@@ -13,7 +13,21 @@ jitted_discard = jax.jit(_discard)
 jitted_next_meld_player = jax.jit(_next_meld_player)
 jitted_abortive_draw_normal = jax.jit(_abortive_draw_normal) # skip test for now
 jitted_tsumo = jax.jit(_tsumo)
+jitted_next_round = jax.jit(_next_round)
 IDX_AFTER_FIRST_DRAW = FIRST_DRAW_IDX - 1
+
+
+def _advance_after_dummy(state, steps: int = 4):
+    """Advance the state after the dummy sharing is complete."""
+    # If the dummy count is 0, the dummy sharing is complete, so the next round is called.
+    # If the dummy count is not 0, the dummy sharing is not complete, so the next round is called.
+    for _ in range(steps):
+        state = jitted_next_round(state)
+        if int(state._dummy_count) == 0:
+            # The dummy sharing is complete, so the next round is called.
+            break
+    return state
+
 
 class TestSpecialCase(unittest.TestCase):
     def setUp(self):
@@ -93,5 +107,18 @@ class TestSpecialCase(unittest.TestCase):
         self.assertEqual(jnp.all(state.rewards == jnp.array([960, -320, -320, -320])), True)
 
 
-
-
+    def test_eight_consecutive_deals(self):
+        """
+        Test if the round is terminated when the eight consecutive deals are made.
+        """
+        state = self.state
+        state = state.replace(
+            _dealer=jnp.int8(0),
+            _round=jnp.int8(0),
+            _honba=jnp.int8(8),
+            _has_won=jnp.array([True, False, False, False], dtype=jnp.bool_),
+        )
+        state = _advance_after_dummy(state)
+        self.assertEqual(state._round, 1)
+        self.assertEqual(state._honba, 0)
+        self.assertEqual(state._dealer, 1)
