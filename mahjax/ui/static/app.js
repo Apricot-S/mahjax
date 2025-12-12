@@ -460,11 +460,12 @@ async function fetchAgents() {
 
 function populateAgents(agents) {
   agentCache = [...agents];
+  if (!agentSelect) return;
   agentSelect.innerHTML = '';
   agents.forEach((agent) => {
     const option = document.createElement('option');
     option.value = agent.id;
-    option.textContent = `${agent.name}`;
+    option.textContent = agent.name;
     agentSelect.appendChild(option);
   });
   if (agentSelect.options.length > 0) {
@@ -482,7 +483,7 @@ function populateAgents(agents) {
 }
 
 function collectGameRequest() {
-  const agentId = agentSelect.value;
+  const agentId = agentSelect?.value;
   if (!agentId) {
     throw new Error('Agent is required');
   }
@@ -1171,15 +1172,16 @@ aiNameInput.addEventListener('input', () => {
 humanNameInput.addEventListener('input', () => {
   humanNameInput.dataset.autoFilled = 'false';
 });
-agentSelect.addEventListener('change', () => {
-  if (aiNameInput.dataset.autoFilled === 'false') return;
-  const selected = agentCache.find((agent) => agent.id === agentSelect.value);
-  if (selected) {
-    aiNameInput.value = selected.name;
-    aiNameInput.dataset.autoFilled = 'true';
-  }
-});
-
+if (agentSelect) {
+  agentSelect.addEventListener('change', () => {
+    if (aiNameInput.dataset.autoFilled === 'false') return;
+    const selected = agentCache.find((agent) => agent.id === agentSelect.value);
+    if (selected) {
+      aiNameInput.value = selected.name;
+      aiNameInput.dataset.autoFilled = 'true';
+    }
+  });
+}
 (async function init() {
   try {
     const agents = await fetchAgents();
