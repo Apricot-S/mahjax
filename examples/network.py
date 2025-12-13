@@ -109,7 +109,7 @@ class FeatureExtractor(nn.Module):
         hand_feature = (x_hand * hand_mask[..., None]).sum(axis=1) / token_count 
 
         # --- Encode History ---
-        # action_history: (Batch, 200, 2) 想定
+        # action_history: (Batch, 200, 2) 
         # [Important correction point: check if shape[1] is 200 (Time) and slice accordingly]
         # Check if shape[1] is 200 (Time) and slice accordingly
         # This allows it to work with both (Batch, 200, 2) and (Batch, 2, 200)
