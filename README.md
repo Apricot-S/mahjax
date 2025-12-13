@@ -78,7 +78,7 @@ MahJax includes a web-based UI (FastAPI + JS) that allows you to play against bu
 
 Install dependencies and start the server:
 ```bash
-pip install -r requirements.txt
+pip install mahjax
 uvicorn mahjax.ui.app:create_app --host 0.0.0.0 --port 8000
 ```
 Open http://localhost:8000 to start playing. The default agents are random and rule_based one.
@@ -124,6 +124,7 @@ Jax based environments
 - [habara-k](https://github.com/habara-k): For developing core JAX components such as shanten and Yaku calculation.
 - [OkanoShinri](https://github.com/OkanoShinri): For the initial implementation of MahJax and its SVG visualization.
 - [easonyu0203](easonyu0203): For advise on PPO implementation in multi-player imperfect information game.
+
 
 
 
