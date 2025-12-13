@@ -115,15 +115,14 @@ Jax based environments
 - [Navix](https://github.com/epignatelli/navix): JAX-version of MiniGrid.
 
 ## Cite us
-```
-
-```
+Paper comming soon.
 
 ## Acknowledgements
 - [sotetsuk](https://github.com/sotetsuk): For general advice on the development of mahjax based on his experience of developping pgx
 - [habara-k](https://github.com/habara-k): For developing core JAX components such as shanten and Yaku calculation.
 - [OkanoShinri](https://github.com/OkanoShinri): For the initial implementation of MahJax and its SVG visualization.
 - [easonyu0203](easonyu0203): For advise on PPO implementation in multi-player imperfect information game.
+
 
 
 
