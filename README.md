@@ -16,14 +16,14 @@ We aim to complement this by offering a full-scale Japanese Riichi Mahjong envir
 - **Vectorized Environment:** Fully JIT-compilable and extremely fast (approx. **1.6M steps/sec** on 8x A100 GPUs).
 - **Beautiful Visualization:** Like Pgx, we offer SVG-based game visualization. We also provide an English tile version for those unfamiliar with Chinese characters (Kanji).
 - **Playable Interface:** A web-based UI allows you to play directly against the agents you train.
-- **RL Examples:** We provide simple examples for Behavior Cloning and Reinforcement Learning in the `examples/` directory.
+- **RL Examples:** We provide simple examples for Behavior Cloning and Reinforcement Learning in the [`examples/`](https://github.com/nissymori/mahjax/tree/main/examples) directory.
 
 For more details, please refer to the [Documentation](link_to_docs) (**TODO links**).
 
 # Quick Start
 
 ### Basic Usage
-We follow the [Pgx](https://github.com/sotetsuk/pgx) API design.
+We basically follow the [Pgx](https://github.com/sotetsuk/pgx) API design.
 
 ```python
 import jax
@@ -69,7 +69,7 @@ There are several variants of Japanese Riichi Mahjong. The most significant dist
 # User interface
 MahJax includes a web-based UI (FastAPI + JS) that allows you to play against built-in or custom agents directly in your browser.
 
-**Running the UI**
+### Running the UI
 
 Install dependencies and start the server:
 ```bash
@@ -77,6 +77,25 @@ pip install -r requirements.txt
 uvicorn mahjax.ui.app:create_app --host 0.0.0.0 --port 8000
 ```
 Open http://localhost:8000 to start playing.
+
+### Playing Against Your Agent
+You can register your trained agent to appear in the UI's agent selector.
+Create a python script (e.g., `my_actor.py`) and register your agent's act function:
+
+```py
+from pathlib import Path
+from mahjax.ui.app import create_app
+
+app = create_app()
+
+# Load your custom agent
+app.state.manager.registry.load_callable_from_path(
+    file_path=Path("path/to/my_agent.py"),
+    attribute="act", # The function name to call: act(state, rng) -> action_id
+    description="My Custom Agent",
+)
+```
+**TODO: write**
 
 # See also
 
@@ -99,5 +118,6 @@ Jax based environments
 - [habara-k](https://github.com/habara-k): For developing core JAX components such as shanten and Yaku calculation.
 - [OkanoShinri](https://github.com/OkanoShinri): For the initial implementation of MahJax and its SVG visualization.
 - [easonyu0203](easonyu0203): For advise on PPO implementation in multi-player imperfect information game.
+
 
 
