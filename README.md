@@ -3,7 +3,7 @@
 </div>
 
 
-# MahJax
+## MahJax
 **A GPU-Accelerated Japanese Riichi Mahjong Simulator for RL in [JAX](https://github.com/google/jax)**
 
 Japanese Riichi Mahjong is a complex board game that presents a unique combination of **imperfect information**, **multi-player (>2) competition**, **stochastic dynamics**, and **high-dimensional inputs**.
@@ -11,7 +11,7 @@ MahJax is highly inspired by [Pgx](https://github.com/sotetsuk/pgx), which offer
 While Pgx includes imperfect information games (such as miniature poker and mahjong), its primary emphasis is on deterministic perfect-information games like Go, Chess, and Shogi.
 We aim to complement this by offering a full-scale Japanese Riichi Mahjong environment written entirely in JAX.
 
-# Overview
+## Overview
 
 - **Vectorized Environment:** Fully JIT-compilable and extremely fast (approx. **1.6M steps/sec** on 8x A100 GPUs).
 - **Beautiful Visualization:** Like Pgx, we offer SVG-based game visualization. We also provide an English tile version for those unfamiliar with Chinese characters (Kanji).
@@ -20,7 +20,7 @@ We aim to complement this by offering a full-scale Japanese Riichi Mahjong envir
 
 For more details, please refer to the [Documentation](link_to_docs) (**TODO links**).
 
-# Quick Start
+## Quick Start
 ### Install
 Mahjax is available on PyPI. Please make sure that your Python environment has jax and jaxlib installed, depending on your hardware specification.
 ```bash
@@ -71,7 +71,7 @@ There are several variants of Japanese Riichi Mahjong. The most significant dist
 - **Current Support**: Standard 4-player rules without red tiles.
 - **Future Plans**: We plan to incorporate popular variants, including Red 5 tiles and 3-player Mahjong (Sanma).
 
-# User interface
+## User interface
 MahJax includes a web-based UI (FastAPI + JS) that allows you to play against built-in or custom agents directly in your browser.
 
 ### Running the UI
@@ -103,7 +103,7 @@ app.state.manager.registry.load_callable_from_path(
 ```
 Run `uvicorn my_ui:app --port 8000`.    
 
-# See also
+## See also
 
 Jax based environments
 - [Pgx](https://github.com/sotetsuk/pgx): Boad game environments such as Go, chess, and Shogi.
@@ -114,16 +114,17 @@ Jax based environments
 - [JaxMARL](https://github.com/FLAIROx/JaxMARL): Multi-agent environments such as Hanabi.
 - [Navix](https://github.com/epignatelli/navix): JAX-version of MiniGrid.
 
-# Cite us
+## Cite us
 ```
 
 ```
 
-# Acknowledgements
+## Acknowledgements
 - [sotetsuk](https://github.com/sotetsuk): For general advice on the development of mahjax based on his experience of developping pgx
 - [habara-k](https://github.com/habara-k): For developing core JAX components such as shanten and Yaku calculation.
 - [OkanoShinri](https://github.com/OkanoShinri): For the initial implementation of MahJax and its SVG visualization.
 - [easonyu0203](easonyu0203): For advise on PPO implementation in multi-player imperfect information game.
+
 
 
 
