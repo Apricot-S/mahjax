@@ -34,6 +34,9 @@ class TrainConfig:
     viz_out_dir: str = "fig"
     viz_filename: str = "bc_agent_game.svg"
     viz_max_steps: int = 1000
+    # save model
+    save_model: bool = True
+    save_model_path: str = "bc_model.pkl"
 
 # cli
 conf_dict = OmegaConf.from_cli()
@@ -197,7 +200,7 @@ def main():
               f"Val Loss: {val_stats['loss']/val_steps:.4f}, Acc: {val_stats['acc']/val_steps:.4f}", flush=True)
 
     # 5. Save & Visualize
-    save_ckpt = "bc_params.pkl"
+    save_ckpt = cfg.save_model_path
     with open(save_ckpt, "wb") as f:
         pickle.dump(train_state.params, f)
     print(f"Params saved to {save_ckpt}")

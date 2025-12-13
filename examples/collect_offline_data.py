@@ -26,8 +26,8 @@ class CollectConfig(BaseModel):
     seed: int = 0
     num_envs: int = 4
     num_steps: int = 32
-    total_timesteps: int = 200_000
-    save_path: str = "mahjong_offline_data.pkl"
+    num_samples: int = 200_000
+    dataset_path: str = "mahjong_offline_data.pkl"
     gamma: float = 0.99       # 割引率
     max_reward: float = 320.0 # 正規化用
 
@@ -117,7 +117,7 @@ def main():
     data_ret = [] # New: Returns
     
     chunk_size = cfg.num_envs * cfg.num_steps
-    num_chunks = (cfg.total_timesteps + chunk_size - 1) // chunk_size
+    num_chunks = (cfg.num_samples + chunk_size - 1) // chunk_size
     
     total_steps = 0
     start_time = time.time()
@@ -161,7 +161,7 @@ def main():
         data_ret.append(returns_chunk.flatten())
         
         total_steps += act_cpu.size
-        if total_steps >= cfg.total_timesteps:
+        if total_steps >= cfg.num_samples:
             break
 
     # Save
@@ -174,7 +174,7 @@ def main():
     full_mask = np.concatenate(data_mask, axis=0)
     full_ret = np.concatenate(data_ret, axis=0)
     
-    N = cfg.total_timesteps
+    N = cfg.num_samples
     dataset = {
         "observation": {k: v[:N] for k, v in full_obs.items()},
         "action": full_act[:N],
@@ -182,10 +182,10 @@ def main():
         "return": full_ret[:N] # New: Returns
     }
     
-    if cfg.save_path:
-        os.makedirs(os.path.dirname(cfg.save_path) or ".", exist_ok=True)
-        print(f"Saving to {cfg.save_path} ...", flush=True)
-        with open(cfg.save_path, "wb") as f:
+    if cfg.dataset_path:
+        os.makedirs(os.path.dirname(cfg.dataset_path) or ".", exist_ok=True)
+        print(f"Saving to {cfg.dataset_path} ...", flush=True)
+        with open(cfg.dataset_path, "wb") as f:
             pickle.dump(dataset, f)
         print("Done.", flush=True)
 

@@ -53,7 +53,7 @@ class PPOWithRegArgs(BaseModel):
     # Magnet hyperparameters
     mag_coef: float = 0.2
     mag_divergence_type: Literal["kl", "l2"] = "kl"
-    pretrained_path: Optional[str] = "bc_params.pkl"
+    pretrained_model_path: Optional[str] = "bc_params.pkl"
     # For logging and saving
     wandb_project: str = "mahjax-ppo-with-reg"
     save_model: bool = True
@@ -324,9 +324,9 @@ def train(rng_key):
         tx=optax.adamw(args.lr, eps=1e-5)
     )
     # Load baseline parameters
-    if args.pretrained_path:
-        print(f"Loading anchor: {args.pretrained_path}", flush=True)
-        with open(args.pretrained_path, "rb") as f: magnet_params = pickle.load(f)
+    if args.pretrained_model_path:
+        print(f"Loading anchor: {args.pretrained_model_path}", flush=True)
+        with open(args.pretrained_model_path, "rb") as f: magnet_params = pickle.load(f)
         if not isinstance(magnet_params, dict): magnet_params = {"params": magnet_params}
     else:
         print("Using random anchor.", flush=True); magnet_params = params
