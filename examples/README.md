@@ -7,6 +7,10 @@ The code covers three main steps:
 2. **Behavior Cloning (BC):** Training a baseline model using supervised learning (`bc.py`).
 3. **Reinforcement Learning (RL):** Training a PPO agent with regularization towards the BC model (`ppo_with_reg.py`).
 
+<div align="center">
+<img src="https://github.com/nissymori/mahjax/blob/main/examples/assets/results.png" width="90%">
+</div>
+
 ### Data Collection
 We collect training data using a hand-crafted rule-based agent (designed to minimize shanten, etc.). Please refer to [`mahjax/no_red_mahjong/rule_based_players.py`]() for implementation details.
 
