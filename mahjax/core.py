@@ -5,6 +5,7 @@
 #   - remove observation from the state class since mahjax accept 2 types of observation: dict and 2D array.
 #   - fix available environments and make functions
 #   - remove unnesesary env implementation since mahjax only support mahjong environment.
+#   - function semantics are emptied for flexibility.
 #
 # Copyright 2023 The Pgx Authors.
 #
@@ -171,7 +172,6 @@ class Env(abc.ABC):
         """
         ...
 
-
     def step(
         self,
         state: State,
@@ -190,7 +190,6 @@ class Env(abc.ABC):
         """
         ...
 
-
     def observe(self, state: State) -> Array:
         """
         Observation function.
@@ -202,7 +201,6 @@ class Env(abc.ABC):
             Array: Observation of the state
         """
         ...
-
 
     @property
     @abc.abstractmethod
@@ -221,29 +219,27 @@ class Env(abc.ABC):
     @property
     @abc.abstractmethod
     def num_players(self) -> int:
-        """Number of players (e.g., 2 in Tic-tac-toe)"""
+        """Number of players (3 or 4 in Mahjong)"""
         ...
 
     @property
     def num_actions(self) -> int:
-        """Return the size of action space (e.g., 9 in Tic-tac-toe)"""
-        state = self.init(jax.random.PRNGKey(0))
-        return int(state.legal_action_mask.shape[0])
+        """Return the size of action space"""
+        ...
 
     @property
     def observation_shape(self) -> Tuple[int, ...]:
         """Return the matrix shape of observation"""
-
+        ...
 
     @property
     def _illegal_action_penalty(self) -> float:
         """Negative reward given when illegal action is selected."""
-        return -1.0
+        ...
 
     def _step_with_illegal_action(self, state: State, loser: Array) -> State:
         """Step function with illegal action."""
-
-
+        ...
 
 def available_envs() -> Tuple[EnvId, ...]:
     """List up all environment id available in `mahjax.make` function.
@@ -259,19 +255,24 @@ def available_envs() -> Tuple[EnvId, ...]:
     return games
 
 
-def make(env_id: EnvId, one_round: bool = False):  # noqa: C901
+def make(env_id: EnvId, **kwargs):  # noqa: C901
     """Load the specified environment.
 
     !!! example "Example usage"
 
         ```py
-        env = mahjax.make("no_red_mahjong")
+        env = mahjax.make(
+            "no_red_mahjong",
+            one_round=True,  # True: Single round, False: Hanchan (East-South game)
+            observe_type="dict", # "dict" for Transformer, "2D" for CNN
+            order_points=[30, 10, -10, -30],  # Final score bonuses (uma)
+        )
         ```
     """
-    from mahjax.no_red_mahjong.env import Mahjong as NoRedMahjong
+    from mahjax.no_red_mahjong.env import NoRedMahjong
 
     if env_id == "no_red_mahjong":
-        return NoRedMahjong(one_round=one_round)
+        return NoRedMahjong(**kwargs)
     elif env_id == "red_mahjong":
         raise NotImplementedError("Red mahjong is not implemented yet")
     else:

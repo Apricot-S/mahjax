@@ -7,7 +7,7 @@ from mahjax.no_red_mahjong.action import Action
 from mahjax.no_red_mahjong.state import FIRST_DRAW_IDX
 from mahjax.no_red_mahjong.env import _step, _init
 from mahjax._src.visualizer import save_svg, save_svg_animation
-from mahjax.no_red_mahjong.rule_based_players import rule_based_player
+from mahjax.no_red_mahjong.players import rule_based_player
 from mahjax.no_red_mahjong.yaku import Yaku
 from mahjax.no_red_mahjong.env import _dora_array
 

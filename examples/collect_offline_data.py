@@ -17,9 +17,9 @@ from omegaconf import OmegaConf
 from pydantic import BaseModel
 from tqdm import tqdm
 
+import mahjax
 from mahjax.wrappers.auto_reset_wrapper import auto_reset
-from mahjax.no_red_mahjong.env import Mahjong
-from mahjax.no_red_mahjong.rule_based_players import rule_based_player
+from mahjax.no_red_mahjong.players import rule_based_player
 
 # --- Config ---
 class CollectConfig(BaseModel):
@@ -32,23 +32,23 @@ class CollectConfig(BaseModel):
     max_reward: float = 320.0 # 正規化用
 
 # --- Environment ---
-env = Mahjong(one_round=True, observe_type="dict")
+env = mahjax.make("no_red_mahjong", one_round=True, observe_type="dict")
 step_env = auto_reset(env.step, env.init)
 
 def _one_step(state, key):
     obs = env.observe(state)
     mask = state.legal_action_mask
     curr_player = state.current_player # 誰の手番か
-    
+
     k_act, k_step = jax.random.split(key, 2)
     action = rule_based_player(state, k_act)
-    
+
     next_state = step_env(state, action, k_step)
-    
+
     # 状態遷移情報
     done = next_state.terminated | next_state.truncated
     reward = next_state.rewards # [P]
-    
+
     return next_state, (obs, action, mask, reward, done, curr_player)
 
 def _rollout_chunk(state, keys, num_steps):
@@ -70,7 +70,7 @@ def compute_returns(rewards, dones, current_players, gamma):
     """
     T, B, P = rewards.shape
     returns = np.zeros((T, B), dtype=np.float32)
-    
+
     # Monte Carlo Return Calculation (Reverse Order)
     # Note: Bootstrapping is required, but we use complete data for this purpose, so we approximate it with MC.
     # Calculate for each environment
@@ -80,19 +80,19 @@ def compute_returns(rewards, dones, current_players, gamma):
             # Reward at the current step
             r_t = rewards[t, b] # [P]
             d_t = dones[t, b]   # bool
-            
+
             if d_t:
                 running_ret = np.zeros(P, dtype=np.float32)
-            
+
             # G_t = r_t + gamma * G_{t+1}
             running_ret = r_t + gamma * running_ret
-            
+
             # Record the Return for the player who acted at this step
             # (Value at the action selection point = immediate reward + future value)
             # Note: Whether to include the immediate reward or not depends on the definition, but in Q-learning, it is included.
             p = current_players[t, b]
             returns[t, b] = running_ret[p]
-            
+
     return returns
 
 def main():
@@ -103,36 +103,36 @@ def main():
 
     rng = jax.random.PRNGKey(cfg.seed)
     rng, k_init = jax.random.split(rng)
-    
+
     init_keys = jax.random.split(k_init, cfg.num_envs)
     state = jax.vmap(env.init)(init_keys)
-    
+
     print("Compiling JIT function...", flush=True)
     jit_rollout = jax.jit(lambda s, k: _rollout_chunk(s, k, cfg.num_steps))
-    
+
     # Buffers
-    data_obs = [] 
+    data_obs = []
     data_act = []
     data_mask = []
     data_ret = [] # New: Returns
-    
+
     chunk_size = cfg.num_envs * cfg.num_steps
     num_chunks = (cfg.num_samples + chunk_size - 1) // chunk_size
-    
+
     total_steps = 0
     start_time = time.time()
-    
+
     # Carry for continuity (from the previous chunk)
     # In a full offline RL dataset creation, calculations across episode boundaries are required, but here we simplify it by calculating within a chunk or treating it as a sufficiently long episode.
     # Here, we implement a simplified version that calculates within a chunk and ignores the boundary (with some tolerance for error).
     # Note: If you want to do it strictly, you need to keep all history in memory and calculate at the end, but due to memory constraints (79GB error), we prioritize chunk processing.
-    
+
     for _ in tqdm(range(num_chunks), desc="Collecting", mininterval=10.0):
         rng, k_chunk = jax.random.split(rng)
         keys = jax.random.split(k_chunk, cfg.num_envs * cfg.num_steps).reshape(cfg.num_steps, cfg.num_envs, -1)
-        
+
         state, (obs_seq, act_seq, mask_seq, rew_seq, done_seq, cp_seq) = jit_rollout(state, keys)
-        
+
         # CPU Transfer
         obs_cpu = jax.tree_map(np.array, obs_seq)
         act_cpu = np.array(act_seq)
@@ -140,7 +140,7 @@ def main():
         rew_cpu = np.array(rew_seq)
         done_cpu = np.array(done_seq)
         cp_cpu = np.array(cp_seq)
-        
+
         # --- Return Calculation (CPU) ---
         # Calculate the return within this chunk
         # Note: Due to the truncation at the end of the chunk, there is an error because Bootstrap cannot be performed.
@@ -159,7 +159,7 @@ def main():
         data_act.append(act_cpu.flatten())
         data_mask.append(mask_cpu.reshape(-1, mask_cpu.shape[-1]))
         data_ret.append(returns_chunk.flatten())
-        
+
         total_steps += act_cpu.size
         if total_steps >= cfg.num_samples:
             break
@@ -173,7 +173,6 @@ def main():
     full_act = np.concatenate(data_act, axis=0)
     full_mask = np.concatenate(data_mask, axis=0)
     full_ret = np.concatenate(data_ret, axis=0)
-    
     N = cfg.num_samples
     dataset = {
         "observation": {k: v[:N] for k, v in full_obs.items()},
@@ -181,7 +180,7 @@ def main():
         "legal_action_mask": full_mask[:N],
         "return": full_ret[:N] # New: Returns
     }
-    
+
     if cfg.dataset_path:
         os.makedirs(os.path.dirname(cfg.dataset_path) or ".", exist_ok=True)
         print(f"Saving to {cfg.dataset_path} ...", flush=True)

@@ -19,10 +19,10 @@ from pydantic import BaseModel
 import distrax
 import wandb
 
+import mahjax
 from mahjax.wrappers.auto_reset_wrapper import auto_reset
-from mahjax.no_red_mahjong.env import Mahjong
-
 from network import ACNet
+
 from bc import visualize_game
 
 # Constants
@@ -68,7 +68,7 @@ class PPOWithRegArgs(BaseModel):
 args = PPOWithRegArgs(**OmegaConf.to_object(OmegaConf.from_cli()))
 print(args, file=sys.stderr)
 
-BASE_ENV = Mahjong(one_round=args.one_round, observe_type="dict")
+BASE_ENV = mahjax.make("no_red_mahjong", one_round=args.one_round, observe_type="dict")
 step_fn = auto_reset(BASE_ENV.step, BASE_ENV.init)
 NUM_PLAYERS, NUM_UPDATES = BASE_ENV.num_players, int(args.total_timesteps // (args.num_envs * args.num_steps))
 BATCH_SIZE = args.num_envs * args.num_steps

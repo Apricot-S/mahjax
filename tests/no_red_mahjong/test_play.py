@@ -12,7 +12,7 @@ from mahjax.no_red_mahjong.tile import Tile, River
 from mahjax.no_red_mahjong.meld import EMPTY_MELD
 from mahjax.no_red_mahjong.shanten import Shanten
 from mahjax.no_red_mahjong.yaku import Yaku
-from mahjax.no_red_mahjong.rule_based_players import rule_based_player
+from mahjax.no_red_mahjong.players import rule_based_player
 
 jitted_init = jax.jit(_init)
 jitted_step = jax.jit(_step)

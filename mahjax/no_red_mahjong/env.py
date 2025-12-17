@@ -18,7 +18,7 @@ from typing import Dict, List, Optional, Tuple
 import jax
 import jax.numpy as jnp
 
-from mahjax._src.struct import dataclass
+from mahjax.core import Env
 from mahjax._src.types import Array, PRNGKey
 from mahjax.no_red_mahjong.action import Action
 from mahjax.no_red_mahjong.hand import Hand
@@ -104,7 +104,7 @@ def yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
     return has_yaku, fan42.astype(jnp.int32), fu42.astype(jnp.int32)
 
 
-class Mahjong:
+class NoRedMahjong(Env):
     def __init__(
         self,
         one_round: bool = False,

@@ -353,3 +353,9 @@ def rule_based_player(state, rng):
     can_ron = legal_action_mask[Action.RON]
     action = jnp.where(can_ron, Action.RON, action)
     return action
+
+
+def random_player(state, rng):
+    legal_action_mask = state.legal_action_mask
+    logits = jnp.log(legal_action_mask.astype(jnp.float32))
+    return jax.random.categorical(rng, logits=logits)
