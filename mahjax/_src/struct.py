@@ -1,13 +1,7 @@
-# NOTE: This file is copied from Flax (https://github.com/google/flax).
+# NOTE: This file is copied from Pgx (https://github.com/sotetsuk/pgx).
 # Copyright belongs to the original authors.
-# We keep tracking the updates of original Flax implementation.
-# We try to minimize the modification to this file. Exceptions includes:
-#   - automatic formatting
-#   - type checking suppression
-#   - support for various JAX versions
-#   - dynamic import of Flax to support dataclass serialization
-
-# Copyright 2023 The Flax Authors.
+#
+# Copyright 2023 The Pgx Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.

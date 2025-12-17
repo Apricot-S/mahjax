@@ -10,23 +10,7 @@ FALSE = jnp.bool_(False)
 
 
 def auto_reset(step_fn, init_fn):
-    """Auto reset wrapper. Copied and modified from Pgx
-
-    We have a concern about the final state before staging this wrapper:
-
-    When auto-reset happens, the termianl (or truncated) state/observation is
-    replaced by initial state/observation, It's ok if it's termination.
-    However, when truncation happens, value of truncated state/observation
-    might be used by agents (by bootstrap). So it must be stored somewhere.
-    For example,
-
-    https://github.com/Farama-Foundation/Gymnasium/blob/main/gymnasium/wrappers/autoreset.py#L59
-
-    However, currently, truncation does *NOT* actually happens because
-    all of Mahjax environments (games) are finite-horizon and
-    terminates within reasonable # of steps.
-    Note that chess, shogi, and Go have `max_termination_steps` as AlphaZero.
-    So, this implementation is enough (so far).
+    """Auto reset wrapper.
     """
 
     def wrapped_step_fn(state: State, action: Array, key: Optional[PRNGKey] = None):
