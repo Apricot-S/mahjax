@@ -34,9 +34,9 @@ from mahjax.no_red_mahjong.env import (
     _abortive_draw_normal,
     _next_round,
     _kan,
-    Mahjong,
+    NoRedMahjong,
 )
-env = Mahjong()
+env = NoRedMahjong()
 
 jitted_init = jax.jit(_init)
 jitted_step = jax.jit(_step)
