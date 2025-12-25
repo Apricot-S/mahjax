@@ -586,9 +586,6 @@ class Yaku:
         last_tile_type = last_tile
         # Get the dora based on the presence or absence of riichi dora is (2, 34) shape dora[0] is the visible dora, dora[1] includes the hidden dora
         dora = jnp.where(riichi, dora[1], dora[0])
-        # Set the winds
-        seat_wind_tile_type = WIND_TILE[seat_wind]
-        prevalent_wind_tile_type = WIND_TILE[prevalent_wind]
 
         # Judgment of the necessary conditions for Pinfu and the hand concealed
         is_hand_concealed = jnp.all(
