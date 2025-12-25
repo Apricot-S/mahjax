@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mahjax"
+version = "0.0.1"
+description = "GPU-accelerated vectorized mahjong simulators for reinforcement learning"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Soichiro Nishimori", email = "gatikiti.630@gmail.com" },
+]
+keywords = ["mahjong", "jax", "reinforcement-learning", "simulation"]
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "jax>=0.4.6",
+    "typing_extensions>=4.2.0",
+    "svgwrite",
+    "fastapi",
+    "uvicorn",
+]
+
+[project.urls]
+Homepage = "https://github.com/nissymori/mahjax"
+Repository = "https://github.com/nissymori/mahjax"
+Issues = "https://github.com/nissymori/mahjax/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["mahjax*"]
+
+[tool.setuptools.package-data]
+"" = ["LICENSE"]
+"mahjax" = ["**/*.svg"]
