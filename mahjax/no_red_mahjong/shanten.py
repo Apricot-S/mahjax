@@ -39,7 +39,7 @@ class Shanten:
     @staticmethod
     def discard(hand: Array) -> Array:
         # i to int32, align the dtype of both branches of cond
-        def f(i: Array) -> Array:
+        def f(i):
             i = jnp.int32(i)
             return jax.lax.cond(
                 hand[i] == 0,
@@ -50,7 +50,7 @@ class Shanten:
         return jax.vmap(f)(jnp.arange(34, dtype=jnp.int32))
 
     def detailed_discard(hand: Array) -> Array:
-        def f(i: Array) -> Array:
+        def f(i):
             i = jnp.int32(i)
             return jax.lax.cond(
                 hand[i] == 0,
@@ -100,9 +100,9 @@ class Shanten:
     @staticmethod
     def normal(hand: Array) -> Array:
         # --- code generation (int32 fixed) ---
-        def encode_suit(suit: Array) -> Array:
-            def loop_rng(start: Array, stop: Array) -> Array:
-                def body(i: Array, code: Array) -> Array:
+        def encode_suit(suit):
+            def loop_rng(start, stop):
+                def body(i, code):
                     return code * jnp.int32(5) + hand[i].astype(jnp.int32)
 
                 return jax.lax.fori_loop(start, stop, body, jnp.int32(0))
@@ -122,7 +122,7 @@ class Shanten:
         CACHE = Shanten.CACHE  # (N_code, 9)
         J = jnp.int32(CACHE.shape[1])  # == 9
 
-        def gather_elem(c: Array, idx: Array) -> Array:
+        def gather_elem(c, idx):
             lin = c * J + idx
             return jnp.take(CACHE.reshape(-1), lin)
 
@@ -133,7 +133,7 @@ class Shanten:
         idx = idx.at[jnp.arange(4), jnp.arange(4)].set(jnp.int32(5))
         codes_rect = jnp.broadcast_to(code, (4, 4))  # (4,4)
 
-        def one_step(t: Array, carry: Tuple[Array, Array]) -> Tuple[Array, Array]:
+        def one_step(t, carry):
             cost, idx = carry
             # Get the candidate costs (4,4) and select the minimum suit
             cand = gather_elem(codes_rect, idx)  # (4,4)
@@ -152,7 +152,7 @@ class Shanten:
             )
 
         # Fixed 4 steps (no variable length, so avoid Concretization)
-        def fori_body(t: Array, carry: Tuple[Array, Array]) -> Tuple[Array, Array]:
+        def fori_body(t, carry):
             return one_step(jnp.int32(t), carry)
 
         costs, _ = jax.lax.fori_loop(0, 4, fori_body, (base_costs, idx))

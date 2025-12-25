@@ -27,8 +27,9 @@ class Meld:
     @staticmethod
     def init(action: Array, target: Array, src: Array) -> Array:
         """
-        target: tile index (0-34)
-        src: relative position (0-3), 0: self (only for closed kan), 1: right, 2: opposite, 3: left
+        - action: action type (0-78)
+        - target: tile index (0-34)
+        - src: relative position (0-3), 0: self (only for closed kan), 1: right, 2: opposite, 3: left
         16-bit layout: [15..14] unused, [13..11] src, [10..7] target, [6..0] action
         """
         val = (jnp.uint16(src) << 13) | (jnp.uint16(target) << 7) | jnp.uint16(action)
@@ -45,8 +46,8 @@ class Meld:
     @staticmethod
     def src(meld: Array) -> Array:
         """
-        Relative position (0-3), 0: self (only for closed kan), 1: right, 2: opposite, 3: left
-        return -1 if empty
+        - Encoded in relative position (0-3), 0: self (only for closed kan), 1: right, 2: opposite, 3: left
+        - return -1 if empty
         """
         is_emp = Meld.is_empty(meld)
         return jnp.where(is_emp, jnp.int32(-1), (meld >> 13) & jnp.uint16(0b11))
@@ -55,7 +56,7 @@ class Meld:
     def target(meld: Array) -> Array:
         """
         Target tile index (0-34)
-        return -1 if empty
+        Return -1 if empty
         """
         is_emp = Meld.is_empty(meld)
         return jnp.where(is_emp, jnp.int32(-1), (meld >> 7) & jnp.uint16(0b111111))
@@ -141,12 +142,18 @@ class Meld:
 
     @staticmethod
     def is_chi(meld: Array) -> bool:
+        """
+        Whether the meld is a chi (吃)
+        """
         is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)
         return ((Action.CHI_L <= action) & (action <= Action.CHI_R)) & (~is_emp)
 
     @staticmethod
     def is_pon(meld: Array) -> bool:
+        """
+        Whether the meld is a pon (碰)
+        """
         is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)
         return (action == Action.PON) & (~is_emp)
@@ -202,6 +209,10 @@ class Meld:
     def fu(meld: Array) -> Array:
         """
         Calculate the fu of the meld
+        - Pon is 2 Fu
+        - Open Kan is 8 Fu
+        - Added Kan is 8 Fu, Closed Kan is 16 Fu
+        - Double Fu for Outside and Honor tiles
         """
         is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)

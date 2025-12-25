@@ -35,29 +35,29 @@ class Tile:
     @staticmethod
     def from_tile_id_to_tile(tile_id: Array) -> Array:
         """
-        convert tile_id (0-135) to tile (0-34).
+        Convert tile_id (0-135) to tile (0-34).
         """
         return Tile.FROM_TILE_ID_TO_TILE[tile_id]
 
     @staticmethod
     def is_tile_type_seven(tile_type: Array) -> bool:
         """
-        check if the given tile type is 7.
-        used for swap-calling judgment.
+        Check if the given tile type is 7.
+        Used for swap-calling judgment.
         """
         return (tile_type % 9 == 6) & (tile_type < 27)
 
     @staticmethod
     def is_tile_type_three(tile_type: Array) -> bool:
         """
-        check if the given tile type is 3.
-        used for swap-calling judgment.
+        Check if the given tile type is 3.
+        Used for swap-calling judgment.
         """
         return (tile_type % 9 == 2) & (tile_type < 27)
 
     def is_tile_four_wind(tile: Array) -> bool:
         """
-        check if the given tile is four winds.
+        Check if the given tile is four winds.
         """
         return (27 <= tile) & (tile < 31)
 
@@ -94,7 +94,7 @@ class River:
         is_riichi: bool,
     ) -> Array:
         """
-        record discard at (player, idx). Tsumogiri is automatically determined by action==Action.TSUMOGIRI.
+        Record discard at (player, idx). Tsumogiri is automatically determined by action==Action.TSUMOGIRI.
         src=0 (not set), meld_type=0 (none).
         """
         tile_u16 = jnp.uint16(tile) & TILE_MASK
@@ -114,7 +114,7 @@ class River:
         river: Array, action: Array, player: Array, idx: Array, src: Array
     ) -> Array:
         """
-        when meld is established: update the tile at (player, idx) to "gray=1, src=src, meld_type=meld_type".
+        W   hen meld is established: update the tile at (player, idx) to "gray=1, src=src, meld_type=meld_type".
         """
         tile_u16 = river[player, idx]
         meld_type = (
@@ -138,7 +138,7 @@ class River:
     def decode_river(river: Array) -> Array:
         """
         (4,18) uint16 → (6,4,18) int32 tensor (jittable single array).
-        channel order: [tile, riichi, gray, tsumogiri, src, meld_type]
+        Channel order: [tile, riichi, gray, tsumogiri, src, meld_type]
         - empty(0xFFFF): tile=-1, riichi/gray/tsumo/src/meld_type=0
         """
         empty = river == EMPTY_RIVER
@@ -160,7 +160,7 @@ class River:
     def decode_tile(river: Array) -> Array:
         """
         (4,18) uint16 → (6,4,18) int32 tensor (jittable single array).
-        channel order: [tile, riichi, gray, tsumogiri, src, meld_type]
+        Channel order: [tile, riichi, gray, tsumogiri, src, meld_type]
         - empty(0xFFFF): tile=-1, riichi/gray/tsumo/src/meld_type=0
         """
         empty = river == EMPTY_RIVER

@@ -101,7 +101,7 @@ class Yaku:
     AllTerminals = 29  # 清老頭
     AllHonors = 30  # 字一色
     AllGreen = 31  # 緑一色
-    FourConcealedPons = 32  # 四暗刻
+    FourConcealedPons = 32  # 四暗刻 TODO: Maybe need to distinguish 四暗刻単騎
     FourKans = 33  # 四槓子
 
     # fmt: off
@@ -170,7 +170,11 @@ class Yaku:
         fan: Array,
         fu: Array,
     ) -> int:
-        """Add the last tile to the hand"""
+        """
+        Calculate the score from fan and fu
+        - For yakuman, the score is 8000 * fan
+        - For other yaku, the score is fu << (fan + 2)
+        """
         score = fu << (fan + 2)
         return jax.lax.cond(
             fu == 0,
@@ -257,6 +261,12 @@ class Yaku:
         last_tile_type: Array,
         is_ron: Array,
     ) -> Tuple:
+        """
+        Update the statistics to calculate yaku.
+        - They are precalculated for meld.
+        - We update the statistics based on the hand information.
+        - Each statistics is encoded into cache suitwise.
+        """
         chow = Yaku.chow(code)
         pung = Yaku.pung(code)
 
@@ -320,6 +330,18 @@ class Yaku:
         seat_wind: Array,
         dora: Array,
     ) -> Tuple:
+        """
+        Judge the yaku of the hand.
+        - hand: Hand vector (34,) has 13 tiles
+        - melds: Melds vector (4,)
+        - n_meld: Number of melds (1,)
+        - last_tile: The tile that is added to the hand
+        - riichi: Whether the player has riichi (4,)
+        - is_ron: Whether the winning type is ron (4,)
+        - prevalent_wind: Prevalent wind (0-3)
+        - seat_wind: Seat wind (0-3)
+        - dora: Dora vector (2, 34)
+        """
         # Add the last tile to the hand and determine the yaku
         hand = Hand.add(hand, last_tile)
         last_tile_type = last_tile
@@ -581,6 +603,9 @@ class Yaku:
         seat_wind: Array,
         dora: Array,
     ) -> Tuple:
+        """
+        Judge only yakuman
+        """
         # Judge the hand with the last tile added
         hand = Hand.add(hand, last_tile)
         last_tile_type = last_tile
