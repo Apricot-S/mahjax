@@ -28,8 +28,8 @@ class CollectConfig(BaseModel):
     num_steps: int = 32
     num_samples: int = 200_000
     dataset_path: str = "mahjong_offline_data.pkl"
-    gamma: float = 0.99       # 割引率
-    max_reward: float = 320.0 # 正規化用
+    gamma: float = 0.99       # Discount factor
+    max_reward: float = 320.0 # Normalization used
 
 # --- Environment ---
 env = mahjax.make("no_red_mahjong", one_round=True, observe_type="dict")
@@ -38,14 +38,14 @@ step_env = auto_reset(env.step, env.init)
 def _one_step(state, key):
     obs = env.observe(state)
     mask = state.legal_action_mask
-    curr_player = state.current_player # 誰の手番か
+    curr_player = state.current_player # Who's turn is it?
 
     k_act, k_step = jax.random.split(key, 2)
     action = rule_based_player(state, k_act)
 
     next_state = step_env(state, action, k_step)
 
-    # 状態遷移情報
+    # State transition information
     done = next_state.terminated | next_state.truncated
     reward = next_state.rewards # [P]
 

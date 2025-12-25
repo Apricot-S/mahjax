@@ -57,7 +57,7 @@ def train_step(state: AgentTrainState, batch):
     obs, act, mask = batch['obs'], batch['act'], batch['mask']
 
     def loss_fn(params):
-        # method=ACNet.get_action_logits を指定してActorのみ計算
+        # method=ACNet.get_action_logits to calculate only the Actor
         logits = state.apply_fn(params, obs, method=ACNet.get_action_logits)
         logits = jnp.where(mask, logits, -1e9)
         loss = optax.softmax_cross_entropy_with_integer_labels(logits, act).mean()
@@ -85,14 +85,14 @@ def eval_step(state: AgentTrainState, batch):
 def make_policy_fn(state: AgentTrainState):
     @jax.jit
     def policy(obs, mask, rng):
-        # Use only Actor for inference
+        # Use only the Actor for inference
         logits = state.apply_fn(state.params, obs, method=ACNet.get_action_logits)
         logits = jnp.where(mask, logits, -1e9)
         return jnp.argmax(logits, axis=-1)
     return policy
 
 def visualize_game(cfg, train_state):
-    print("\n=== Visualizing Agent vs Rule-based ===", flush=True)
+    print("\n=== Visualizing the Agent vs the Rule-based Agent ===", flush=True)
     env = mahjax.make("no_red_mahjong", one_round=True, observe_type="dict")
     jitted_step = jax.jit(env.step)
     policy_fn = make_policy_fn(train_state)
@@ -107,7 +107,7 @@ def visualize_game(cfg, train_state):
         rng, k_act, k_rule = jax.random.split(rng, 3)
         if state.current_player == agent_seat:
             obs = env.observe(state)
-            # Add batch dim
+            # Add batch dimension
             obs_batched = jax.tree_map(lambda x: x[None, ...], obs)
             mask_batched = state.legal_action_mask[None, ...]
             action = policy_fn(obs_batched, mask_batched, k_act)[0]

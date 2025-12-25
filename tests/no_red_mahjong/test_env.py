@@ -1,10 +1,9 @@
 import unittest
 import jax
 import jax.numpy as jnp
-from mahjax.no_red_mahjong.tile import Tile, EMPTY_RIVER, River, TILE_MASK
+from mahjax.no_red_mahjong.tile import Tile
 from mahjax.no_red_mahjong.action import Action
 from mahjax.no_red_mahjong.state import FIRST_DRAW_IDX
-from mahjax.no_red_mahjong.hand import Hand
 from mahjax.no_red_mahjong.env import (
     _init,
     _step,

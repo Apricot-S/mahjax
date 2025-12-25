@@ -10,12 +10,9 @@ While different variants require different strategies due to their specific rule
 - Risk management (defense vs. attack)
 - Reading and inferring opponents’ hands
 
-At the moment, Mahjax provides two rule variants:
+At the moment, Mahjax provides only **No red (aka no red dora)** variant.
 
-- **No red (aka no red dora)**
-- **Red (with red dora)**
-
-The “red” in red mahjong refers to **additional dora tiles assigned to certain 5s** (usually 5m, 5p, 5s). This has a large impact on strategy:
+The “red” in red mahjong refers to **additional dora tiles assigned to 5 tiles** (usually 5m, 5p, 5s). This has a large impact on strategy:
 
 - In **no red** mahjong, players must rely more on *yaku* (hand patterns) to increase score.
 - In **red** mahjong, players prioritize **efficiency** to complete a winning hand quickly and must pay closer attention to **risk**, as the average hand value is higher and the chance of dealing into a high-value RON increases.
@@ -26,8 +23,9 @@ The “red” in red mahjong refers to **additional dora tiles assigned to certa
 
 Although no red dora rules are not as popular in the gaming industry or in existing Mahjong AI research, they are widely played in Japan. Some professional leagues adopting this style include:
 
-- [Nihon Pro Mahjong (NIHON PRO MAHJONG)](https://npm2001.com/about/rule/)
-- [Saikouisen Nihon Pro Mahjong Kyoukai (SAIKOUISEN)](https://saikouisen.com/about/rules/)
+- [Japan Professional Mahjong League](https://www.ma-jan.or.jp/guide/game_rule.html)
+- [Nihon Pro Mahjong](https://npm2001.com/about/rule/)
+- [SAIKOUISEN](https://saikouisen.com/about/rules/)
 
 These rules emphasize careful yaku construction and more traditional scoring without the volatility introduced by red dora.
 
@@ -36,19 +34,20 @@ These rules emphasize careful yaku construction and more traditional scoring wit
 ## Red Mahjong
 
 Red mahjong, especially the rule set used by [Tenhou](https://tenhou.net/), is currently the **most popular** variant both in AI research and in commercial online games.
+We are intended to include this rule in a near furture.
 
 ### Research Projects Using/Targeting Red Rules
 
-- suphnx
-- mjx
-- mortal
-- naga
+- [suphnx](https://arxiv.org/abs/2003.13590): First top-player level mahjong agent trained by Deep RL.
+- [mjx](https://github.com/mjx-project/mjx): C++ based simulator for tenhou rule.
+- [mortal](https://github.com/Equim-chan/Mortal): Rust-based simulator + agent traning code. They also provides the [reviewer](https://mjai.ekyu.moe/) by their trained agent.
+- [naga](https://naga.dmv.nico/naga_report/top/): Agent reached 10-dan in tenhou. They also provide a service to review the playlog by the agent.
 
 ### Games Using/Supporting Red Rules
 
-- Tenhou
-- Mahjong Soul
-- MJ Mahjong
+- [Tenhou](https://tenhou.net/)
+- [Mahjong Soul](https://mahjongsoul.yo-star.com/)
+- [MJ Mahjong](https://sega-mj.com/)
 
 These environments typically feature fast-paced play and high average hand values, making them attractive both for players and for AI research.
 
@@ -58,6 +57,7 @@ These environments typically feature fast-paced play and high average hand value
 
 Planned future extensions for Mahjax include:
 
+- **Support tenhou rule (Most prioritized)**.
 - Supporting additional **4-player Japanese Riichi Mahjong** rule sets
 - Integrating **3-player Japanese Mahjong** rules
 

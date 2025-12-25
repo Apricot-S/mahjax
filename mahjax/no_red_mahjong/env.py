@@ -136,8 +136,6 @@ class NoRedMahjong(Env):
         state = state.replace(  # type:ignore
             _shanten_c_p=shanten_val
         )
-        # observation = self.observe(state)
-        # return state.replace(observation=observation)  # type: ignore
         return state
 
     def step(
@@ -181,8 +179,6 @@ class NoRedMahjong(Env):
             lambda: state.replace(legal_action_mask=jnp.ones_like(state.legal_action_mask)),  # type: ignore
             lambda: state,
         )
-        # observation = self.observe(state)
-        # state = state.replace(observation=observation)  # type: ignore
         return state
 
     def observe(self, state: State) -> Array:
