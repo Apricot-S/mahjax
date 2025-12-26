@@ -3,8 +3,8 @@
 </div>
 
 <div align="center">
-<img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(270deg);"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(90deg);">
-<img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(270deg);"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(90deg);">
+<img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="30%"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="30%" style="transform:rotate(270deg);"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="30%" style="transform:rotate(90deg);">
+<img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="30%"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="30%" style="transform:rotate(270deg);"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="30%" style="transform:rotate(90deg);">
 </div>
 
 ## MahJax
