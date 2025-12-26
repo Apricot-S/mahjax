@@ -2,6 +2,10 @@
 <img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/logo.svg" width="45%">
 </div>
 
+<div align="center">
+<img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(270deg);"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(90deg);">
+<img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(270deg);"><img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.svg" width="30%" style="transform:rotate(90deg);">
+</div>
 
 ## MahJax
 **A GPU-Accelerated Japanese Riichi Mahjong Simulator for RL in [JAX](https://github.com/google/jax)**
