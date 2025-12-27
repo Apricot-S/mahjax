@@ -17,7 +17,7 @@ from __future__ import annotations
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, NamedTuple, Optional
 
 import jax
 import jax.numpy as jnp
@@ -33,16 +33,52 @@ from .agents import Agent, AgentRegistry, ensure_valid_action
 from .utils import tile_label, tile_labels
 
 WIND_NAMES = ["東", "南", "西", "北"]
-YAKU_NAMES = [
+YAKU_NAMES_EN = [
     "Pinfu",
-    "PureDoubleChis",
-    "TwicePureDoubleChis",
-    "OutsideHand",
-    "TerminalsInAllSets",
-    "PureStraight",
-    "MixedTripleChis",
-    "TriplePons",
-    "AllPons",
+    "Pure Double Chis",
+    "Twice Pure Double Chis",
+    "Outside Hand",
+    "Terminals in All Sets",
+    "Pure Straight",
+    "Mixed Triple Chis",
+    "Triple Pons",
+    "All Pons",
+    "Three Concealed Pons",
+    "Three Kans",
+    "Seven Pairs",
+    "All Simples",
+    "Half Flush",
+    "Full Flush",
+    "All Terminals and Honors",
+    "Little Three Dragons",
+    "White Dragon",
+    "Green Dragon",
+    "Red Dragon",
+    "Prevalent Wind",
+    "Seat Wind",
+    "Fully Concealed Hand",
+    "Riichi",
+    "Big Three Dragons",
+    "Little Four Winds",
+    "Big Four Winds",
+    "Nine Gates",
+    "Thirteen Orphans",
+    "All Terminals",
+    "All Honors",
+    "All Green",
+    "Four Concealed Pons",
+    "Four Kans",
+]
+YAKU_NAMES_JA = [
+    "平和",
+    "一盃口",
+    "二盃口",
+    "混全帯么九",
+    "純全帯么九",
+    "一気通貫",
+    "三色同順",
+    "三色同刻",
+    "対々和",
     "三暗刻",
     "三槓子",
     "七対子",
@@ -69,17 +105,25 @@ YAKU_NAMES = [
     "四暗刻",
     "四槓子",
 ]
-EXTRA_RON_YAKU = [
-    ("一発", "_ippatsu"),
-    ("ダブル立直", "_double_riichi"),
-    ("槍槓", "_kan_declared"),
-    ("河底撈魚", "_is_haitei"),
+
+
+class ExtraYakuDefinition(NamedTuple):
+    english: str
+    japanese: str
+    attr: str
+
+
+EXTRA_RON_YAKU: List[ExtraYakuDefinition] = [
+    ExtraYakuDefinition("Ippatsu", "一発", "_ippatsu"),
+    ExtraYakuDefinition("Double Riichi", "ダブル立直", "_double_riichi"),
+    ExtraYakuDefinition("Robbing a Kan", "槍槓", "_kan_declared"),
+    ExtraYakuDefinition("Houtei Raoyui", "河底撈魚", "_is_haitei"),
 ]
-EXTRA_TSUMO_YAKU = [
-    ("嶺上開花", "_can_after_kan"),
-    ("一発", "_ippatsu"),
-    ("ダブル立直", "_double_riichi"),
-    ("海底摸月", "_is_haitei"),
+EXTRA_TSUMO_YAKU: List[ExtraYakuDefinition] = [
+    ExtraYakuDefinition("Rinshan Kaihou", "嶺上開花", "_can_after_kan"),
+    ExtraYakuDefinition("Ippatsu", "一発", "_ippatsu"),
+    ExtraYakuDefinition("Double Riichi", "ダブル立直", "_double_riichi"),
+    ExtraYakuDefinition("Haitei Raoyue", "海底摸月", "_is_haitei"),
 ]
 
 
@@ -112,6 +156,7 @@ class WinnerSummary:
     fan: int
     fu: int
     yaku: List[str]
+    yaku_japanese: List[str]
     yakuman: int
     winning_tile: Optional[int]
     from_player: Optional[int]
@@ -125,6 +170,8 @@ class WinnerSummary:
             "fu": self.fu,
             "yakuman": self.yakuman,
             "yaku": self.yaku,
+            "yakuEnglish": self.yaku,
+            "yakuJapanese": self.yaku_japanese,
             "winningTile": self.winning_tile,
             "winningTileLabel": (
                 tile_label(self.winning_tile) if self.winning_tile is not None else None
@@ -744,14 +791,26 @@ def summarise_winner(
     fan_val = int(np.array(fan))
     fu_val = int(np.array(fu))
     yakuman = 0
-    yaku_list = [YAKU_NAMES[i] for i, flag in enumerate(yaku_mask_np) if flag]
-    extras = list_extra_yaku(
-        prev_state, player, EXTRA_RON_YAKU if is_ron else EXTRA_TSUMO_YAKU
+    indices = [i for i, flag in enumerate(yaku_mask_np) if flag]
+    yaku_english = [YAKU_NAMES_EN[i] for i in indices]
+    yaku_japanese = [YAKU_NAMES_JA[i] for i in indices]
+    extra_definitions = EXTRA_RON_YAKU if is_ron else EXTRA_TSUMO_YAKU
+    extras_english = list_extra_yaku(
+        prev_state, player, extra_definitions, use_english=True
+    )
+    extras_japanese = list_extra_yaku(
+        prev_state, player, extra_definitions, use_english=False
     )
     if not is_ron:
         if is_first_turn(prev_state) and int(prev_state._n_meld.sum()) == 0:
-            extras.append("天和" if player == int(prev_state._dealer) else "地和")
-    yaku_list.extend(extras)
+            if player == int(prev_state._dealer):
+                extras_english.append("Heavenly Hand")
+                extras_japanese.append("天和")
+            else:
+                extras_english.append("Earthly Hand")
+                extras_japanese.append("地和")
+    yaku_english.extend(extras_english)
+    yaku_japanese.extend(extras_japanese)
     if fu_val == 0 and fan_val > 0:
         yakuman = fan_val
     points_delta = int(np.round(np.array(next_state.rewards[player]) * 100))
@@ -761,7 +820,8 @@ def summarise_winner(
         points_delta=points_delta,
         fan=fan_val,
         fu=fu_val,
-        yaku=yaku_list,
+        yaku=yaku_english,
+        yaku_japanese=yaku_japanese,
         yakuman=yakuman,
         winning_tile=winning_tile if winning_tile >= 0 else None,
         from_player=from_player,
@@ -769,11 +829,15 @@ def summarise_winner(
 
 
 def list_extra_yaku(
-    state: State, player: int, definitions: List[tuple[str, str]]
+    state: State,
+    player: int,
+    definitions: List[ExtraYakuDefinition],
+    *,
+    use_english: bool,
 ) -> List[str]:
     names: List[str] = []
-    for name, attr in definitions:
-        value = getattr(state, attr)
+    for definition in definitions:
+        value = getattr(state, definition.attr)
         if isinstance(value, (np.ndarray, jnp.ndarray)):
             array_value = np.array(value)
             if array_value.ndim == 0:
@@ -785,7 +849,7 @@ def list_extra_yaku(
         else:
             flag = bool(value)
         if flag:
-            names.append(name)
+            names.append(definition.english if use_english else definition.japanese)
     return names
 
 
