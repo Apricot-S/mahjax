@@ -26,7 +26,7 @@ We aim to complement this by offering a full-scale Japanese Riichi Mahjong envir
 - **Playable Interface:** A web-based UI allows you to play directly against the agents you train.
 - **RL Examples:** We provide simple examples for Behavior Cloning and Reinforcement Learning in the [`examples/`](https://github.com/nissymori/mahjax/tree/main/examples) directory.
 
-For more details, please refer to the [Documentation](link_to_docs).
+For more details, please refer to the [Documentation](https://nissymori.github.io/mahjax/).
 
 ## Quick Start
 ### Install
@@ -138,6 +138,7 @@ Paper comming soon.
 - [habara-k](https://github.com/habara-k): For developing core JAX components such as shanten and Yaku calculation.
 - [OkanoShinri](https://github.com/OkanoShinri): For the initial implementation of MahJax and its SVG visualization.
 - [easonyu0203](easonyu0203): For advise on PPO implementation in multi-player imperfect information game.
+
 
 
 
