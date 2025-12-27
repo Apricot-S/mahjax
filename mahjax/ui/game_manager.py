@@ -24,8 +24,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from mahjax.no_red_mahjong.action import Action
-from mahjax.no_red_mahjong.env import Mahjong, _dora_array
-from mahjax.no_red_mahjong.meld import Meld
+from mahjax.no_red_mahjong.env import NoRedMahjong, _dora_array
 from mahjax.no_red_mahjong.state import FIRST_DRAW_IDX, State
 from mahjax.no_red_mahjong.tile import Tile
 from mahjax.no_red_mahjong.yaku import Yaku
@@ -160,7 +159,7 @@ class GameSession:
     def __init__(
         self,
         *,
-        env: Mahjong,
+        env: NoRedMahjong,
         state: State,
         rng: jnp.ndarray,
         agent: Agent,
@@ -381,7 +380,7 @@ class GameManager:
         hide_opponent_hands: bool = False,
     ) -> GameSession:
         agent = self.registry.get(agent_id)
-        env = Mahjong(one_round=one_round)
+        env = NoRedMahjong(one_round=one_round)
         rng = jax.random.PRNGKey(seed)
         rng, init_key = jax.random.split(rng)
         state = env.init(init_key)
