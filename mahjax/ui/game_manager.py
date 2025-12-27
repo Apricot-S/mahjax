@@ -25,7 +25,7 @@ import numpy as np
 
 from mahjax.no_red_mahjong.action import Action
 from mahjax.no_red_mahjong.env import NoRedMahjong, _dora_array
-from mahjax.no_red_mahjong.state import FIRST_DRAW_IDX, State
+from mahjax.no_red_mahjong.state import DORA_ARRAY, FIRST_DRAW_IDX, State
 from mahjax.no_red_mahjong.tile import Tile
 from mahjax.no_red_mahjong.yaku import Yaku
 
@@ -33,6 +33,7 @@ from .agents import Agent, AgentRegistry, ensure_valid_action
 from .utils import tile_label, tile_labels
 
 WIND_NAMES = ["東", "南", "西", "北"]
+DORA_TILE_LOOKUP = np.array(DORA_ARRAY)
 YAKU_NAMES_EN = [
     "Pinfu",
     "Pure Double Chis",
@@ -159,6 +160,9 @@ class WinnerSummary:
     yaku_japanese: List[str]
     dora_count: int
     ura_dora_count: int
+    dora_tiles: List[int]
+    ura_dora_tiles: List[int]
+    is_riichi: bool
     yakuman: int
     winning_tile: Optional[int]
     from_player: Optional[int]
@@ -180,6 +184,11 @@ class WinnerSummary:
             },
             "dora": self.dora_count,
             "uraDora": self.ura_dora_count,
+            "doraTiles": self.dora_tiles,
+            "doraTileLabels": tile_labels(self.dora_tiles),
+            "uraDoraTiles": self.ura_dora_tiles,
+            "uraDoraTileLabels": tile_labels(self.ura_dora_tiles),
+            "isRiichi": self.is_riichi,
             "winningTile": self.winning_tile,
             "winningTileLabel": (
                 tile_label(self.winning_tile) if self.winning_tile is not None else None
@@ -500,7 +509,8 @@ def mask_opponent_hands(state: State) -> State:
     Tiles are negated so downstream SVG rendering can display tile backs while
     preserving the total count.
     """
-    masked_hands = state._hand.at[1:].set(-state._hand[1:])
+    hands = jnp.asarray(state._hand)
+    masked_hands = hands.at[1:].set(-hands[1:])
     return state.replace(_hand=masked_hands)  # type: ignore[arg-type]
 
 
@@ -781,7 +791,7 @@ def summarise_winner(
     melds = jnp.asarray(prev_state._melds[player])
     n_meld = jnp.int32(prev_state._n_meld[player])
     riichi = jnp.bool_(prev_state._riichi[player])
-    riichi_flag = bool(np.array(riichi))
+    riichi_flag_state = bool(np.array(riichi))
     prevalent_wind = jnp.int32(prev_state._round % 4)
     seat_wind = jnp.int32(prev_state._seat_wind[player])
     dora = jnp.asarray(_dora_array(prev_state))
@@ -792,7 +802,9 @@ def summarise_winner(
     flatten_np = np.array(flatten, dtype=np.int32)
     dora_np = np.array(dora, dtype=np.int32)
     visible_dora = int(np.dot(flatten_np, dora_np[0]))
-    ura_dora = int(np.dot(flatten_np, dora_np[1])) if riichi_flag else 0
+    ura_dora = int(np.dot(flatten_np, dora_np[1])) if riichi_flag_state else 0
+    dora_tile_list = resolve_dora_tiles(prev_state._dora_indicators)
+    ura_dora_tile_list = resolve_dora_tiles(prev_state._ura_dora_indicators)
     yaku_mask, fan, fu = Yaku.judge(
         hand,
         melds,
@@ -828,6 +840,9 @@ def summarise_winner(
                 extras_japanese.append("地和")
     yaku_english.extend(extras_english)
     yaku_japanese.extend(extras_japanese)
+    riichi_yaku_flag = any(
+        name in yaku_english for name in ("Riichi", "Double Riichi")
+    )
     if fu_val == 0 and fan_val > 0:
         yakuman = fan_val
     points_delta = int(np.round(np.array(next_state.rewards[player]) * 100))
@@ -841,10 +856,22 @@ def summarise_winner(
         yaku_japanese=yaku_japanese,
         dora_count=visible_dora,
         ura_dora_count=ura_dora,
+        dora_tiles=dora_tile_list,
+        ura_dora_tiles=ura_dora_tile_list,
+        is_riichi=riichi_yaku_flag,
         yakuman=yakuman,
         winning_tile=winning_tile if winning_tile >= 0 else None,
         from_player=from_player,
     )
+
+
+def resolve_dora_tiles(indicators: jnp.ndarray) -> List[int]:
+    indices = np.array(indicators, dtype=int)
+    tiles: List[int] = []
+    for idx in indices:
+        if idx >= 0:
+            tiles.append(int(DORA_TILE_LOOKUP[idx]))
+    return tiles
 
 
 def list_extra_yaku(

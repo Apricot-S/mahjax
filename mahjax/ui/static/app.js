@@ -137,15 +137,23 @@ const I18N = {
       yakuLabel: '役',
       yakuman: (count) => `${count}倍役満`,
       fanFu: (fan, fu) => `${fan}翻 ${fu}符`,
-      dora: (dora, uraDora) => {
-        if (dora > 0 && uraDora > 0) {
-          return `ドラ: ${dora}　裏ドラ: ${uraDora}`;
+      dora: (dora, uraDora, includeUra = true) => {
+        if (includeUra && typeof uraDora === 'number') {
+          if (dora > 0 && uraDora > 0) {
+            return `ドラ: ${dora}　裏ドラ: ${uraDora}`;
+          }
+          if (uraDora > 0) {
+            return `裏ドラ: ${uraDora}`;
+          }
+          return `ドラ: ${dora}　裏ドラ: 0`;
         }
-        if (uraDora > 0) {
-          return `裏ドラ: ${uraDora}`;
+        if (dora > 0) {
+          return `ドラ: ${dora}　裏ドラ: ${uraDora}`;
         }
         return `ドラ: ${dora}`;
       },
+      doraTiles: (labels) => `ドラ表示: ${labels.join(' ')}`,
+      uraDoraTiles: (labels) => `裏ドラ表示: ${labels.join(' ')}`,
       winningTile: '和了牌',
       winningTileFrom: (tile, rel, name) => `和了牌: ${tile} ← ${rel}(${name})`,
       meta: (honba, kyotaku) => `本場: ${honba}　供託: ${kyotaku}`,
@@ -244,15 +252,20 @@ const I18N = {
       yakuLabel: 'Yaku',
       yakuman: (count) => `${count}x Yakuman`,
       fanFu: (fan, fu) => `${fan} han ${fu} fu`,
-      dora: (dora, uraDora) => {
-        if (dora > 0 && uraDora > 0) {
-          return `Dora: ${dora}, Ura Dora: ${uraDora}`;
-        }
-        if (uraDora > 0) {
-          return `Ura Dora: ${uraDora}`;
+      dora: (dora, uraDora, includeUra = true) => {
+        if (includeUra && typeof uraDora === 'number') {
+          if (dora > 0 && uraDora > 0) {
+            return `Dora: ${dora}, Ura Dora: ${uraDora}`;
+          }
+          if (uraDora > 0) {
+            return `Ura Dora: ${uraDora}`;
+          }
+          return `Dora: ${dora}, Ura Dora: 0`;
         }
         return `Dora: ${dora}`;
       },
+      doraTiles: (labels) => `Dora Indicators: ${labels.join(', ')}`,
+      uraDoraTiles: (labels) => `Ura Dora Indicators: ${labels.join(', ')}`,
       winningTile: 'Winning Tile',
       winningTileFrom: (tile, rel, name) => `Winning Tile: ${tile} ← ${rel} (${name})`,
       meta: (honba, kyotaku) => `Honba: ${honba}    Riichi Sticks: ${kyotaku}`,
@@ -1072,8 +1085,23 @@ function updateSummaryOverlay(data) {
         const doraCount = Number.isFinite(winner.dora) ? winner.dora : 0;
         const uraDoraCount = Number.isFinite(winner.uraDora) ? winner.uraDora : 0;
         const doraLine = document.createElement('div');
-        doraLine.textContent = locale.summary.dora(doraCount, uraDoraCount);
+        const showUra = Boolean(winner.isRiichi);
+        doraLine.textContent = locale.summary.dora(doraCount, uraDoraCount, showUra);
         section.appendChild(doraLine);
+        if (Array.isArray(winner.doraTileLabels) && winner.doraTileLabels.length) {
+          const doraTilesLine = document.createElement('div');
+          doraTilesLine.textContent = locale.summary.doraTiles(winner.doraTileLabels);
+          section.appendChild(doraTilesLine);
+        }
+        if (
+          showUra
+          && Array.isArray(winner.uraDoraTileLabels)
+          && winner.uraDoraTileLabels.length
+        ) {
+          const uraDoraTilesLine = document.createElement('div');
+          uraDoraTilesLine.textContent = locale.summary.uraDoraTiles(winner.uraDoraTileLabels);
+          section.appendChild(uraDoraTilesLine);
+        }
       }
       const detail = document.createElement('div');
       if (winner.yakuman > 0) {
