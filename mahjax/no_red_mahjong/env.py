@@ -405,11 +405,12 @@ def _step(state: State, action: Array) -> State:
     Branch the process according to the action
     The type of action is referred to mahjong/_action.py
     """
+    action_i8 = jnp.int8(action)
     # add action history
     action_history = state._action_history.at[0, state._step_count].set(
         state.current_player
     )
-    action_history = action_history.at[1, state._step_count].set(action)
+    action_history = action_history.at[1, state._step_count].set(action_i8)
     state = state.replace(  # type:ignore
         _action_history=action_history
     )

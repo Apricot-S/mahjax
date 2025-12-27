@@ -146,7 +146,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(state._next_deck_ix, IDX_AFTER_FIRST_DRAW - 4)
         self.assertEqual(state._furiten_by_discard[0], True) # Furiten by discard is not released.
 
-
     def test_make_legal_action_mask_after_draw(self):
         # Ensure legal actions after draws respect haitei, yaku, riichi, and kan constraints.
         hand = jnp.zeros((4, Tile.NUM_TILE_TYPE), dtype=jnp.int8)
@@ -157,7 +156,8 @@ class TestEnv(unittest.TestCase):
                     2, 1, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )
         state = self.set_state(self.state, _hand=hand, _is_hand_concealed=jnp.ones(4, dtype=jnp.bool_))
@@ -213,7 +213,6 @@ class TestEnv(unittest.TestCase):
         )
         legal_action_mask = jitted_make_legal_action_mask_after_draw(state, hand, c_p=0, new_tile=0) # No next draw turn, so cannot riichi
         self.assertEqual(jnp.all(legal_action_mask[Action.RIICHI]), False) # No next draw turn, so cannot riichi
-
 
     def test_make_legal_action_mask_after_discard(self):
         # Ensure discard responses (chi/pon/kan/ron) obey seat priority plus riichi/haitei/furiten/yaku rules.
@@ -342,7 +341,6 @@ class TestEnv(unittest.TestCase):
         next_player, can_any = jitted_next_meld_player(legal_action_mask, 0)
         self.assertEqual(can_any, False)
 
-
     def test_next_ron_player(self):
         # Confirm ron claims iterate correctly over candidates or report none.
         # p0 discarded single ron
@@ -405,7 +403,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(state._riichi[0], True)
         self.assertEqual(state._score[0], 240) # reduce score for riichi declaration
         self.assertEqual(state._double_riichi[0], False) # not double riichi
-
 
     def test_draw_after_kan(self):
         # Ensure rinshan draws increment kan counts, enable after-kan actions, and clear ippatsu.
@@ -511,7 +508,8 @@ class TestEnv(unittest.TestCase):
                 2, 4, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0
-            ]
+            ],
+            dtype=jnp.int8,
         )
         state = self.set_state(
             state,
@@ -530,7 +528,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(state._legal_action_mask_4p[0, Action.TSUMO], True) # kan is closed, so tsumo is possible
         self.assertEqual(state._kan_declared, False) # kan is not declared
 
-
     def test_robbing_kan(self):
         # Verify robbing-kan priority and action masks for ron/pass without boosting kan counts.
         hand = jnp.zeros((4, Tile.NUM_TILE_TYPE), dtype=jnp.int8)
@@ -541,7 +538,8 @@ class TestEnv(unittest.TestCase):
                     2, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 1, 1, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )  # (player 0 can win with 1s, 4s)
         hand = hand.at[1].set(
@@ -551,7 +549,8 @@ class TestEnv(unittest.TestCase):
                     2, 2, 0, 0, 0, 0, 0, 0, 0,
                     1, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )  # (player 1 added kan 1s)
         pon = jnp.zeros((4, 34), dtype=jnp.int32).at[1, 18].set(1) # player 1 pon 1s
@@ -580,7 +579,8 @@ class TestEnv(unittest.TestCase):
                     2, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 1, 1, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )  # player 2 also can win with 1s
         robbing_kan_two_player_state = self.set_state(
@@ -598,7 +598,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(kan_state._legal_action_mask_4p[[0, 2], Action.RON].all(), True) # player 0 and player 2 can ron
         self.assertEqual(kan_state._legal_action_mask_4p[[2], Action.PASS].all(), True) # player 2 can pass
 
-
     def test_pon(self):
         # Ensure pon consumes tiles, opens the hand, updates legal discards, and retains the turn.
         state = self.state
@@ -610,7 +609,8 @@ class TestEnv(unittest.TestCase):
                     2, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )
         state = self.set_state(
@@ -628,8 +628,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(jnp.all(state._legal_action_mask_4p[0, :Tile.NUM_TILE_TYPE] == (hand[0] > 0).at[4].set(False)), True) # player can discard other than target tile (5m)
         self.assertEqual(state.current_player, 0)
 
-
-
     def test_chi(self):
         # Ensure chi removes the appropriate sequence tiles and records the meld.
         hand = jnp.zeros((4, Tile.NUM_TILE_TYPE), dtype=jnp.int8)
@@ -640,7 +638,8 @@ class TestEnv(unittest.TestCase):
                     2, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )
         state = self.set_state(
@@ -656,7 +655,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(jnp.all(state._hand[0, 4] == 0), True) # 5m is consumed
         self.assertEqual(jnp.all(state._n_meld[0] == 1), True)
         self.assertEqual(jnp.all(state._is_hand_concealed[0] == False), True)
-
 
     def test_legal_action_mask_after_chi(self):
         # Confirm post-chi legal masks forbid discarding the just-called tile combinations.
@@ -678,7 +676,6 @@ class TestEnv(unittest.TestCase):
         legal_action_mask = jitted_make_legal_action_mask_after_chi(self.state, hand, 0, 2, Action.CHI_R)
         expected_legal_action_mask = base_legal_action_mask.at[2].set(False) # target tile is prohibited
         self.assertEqual(jnp.all(legal_action_mask[0] == expected_legal_action_mask), True)
-
 
     def test_pass(self):
         # Check pass handling for queued callers, furiten-by-pass, and target clearing.
@@ -736,7 +733,8 @@ class TestEnv(unittest.TestCase):
                     2, 1, 1, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )
         legal_action_mask_4p = jnp.zeros((4, Action.NUM_ACTION), dtype=jnp.bool_)
@@ -760,7 +758,8 @@ class TestEnv(unittest.TestCase):
                     0, 0, 0, 0, 0, 1, 1, 2, 0,
                     0, 0, 0, 0, 0, 0, 2, 0, 0,
                     0, 0, 0, 0, 0, 0, 0
-                ]
+                ],
+                dtype=jnp.int8,
             )
         )
         state = self.set_state(
@@ -771,7 +770,6 @@ class TestEnv(unittest.TestCase):
         )
         state = jitted_riichi(state)
         self.assertEqual(jnp.all(state._legal_action_mask_4p == legal_action_mask_4p.at[0, 16].set(True)), True)
-
 
     def test_double_riichi(self):
         # Show double riichi only applies with no prior melds while clearing the declaration flag.
@@ -872,7 +870,6 @@ class TestEnv(unittest.TestCase):
         state = jitted_ron(state)
         self.assertEqual(jnp.all(state._score == jnp.array([302, 198, 250, 250], dtype=jnp.float32)), True)  # riichi + ippatsu + haitei = 3 fans
         self.assertEqual(jnp.all(state.rewards == jnp.array([52, -52, 0, 0], dtype=jnp.float32)), True)
-
 
     def test_tsumo(self):
         # Verify tsumo scoring/rewards for parent/child plus honba/kyotaku adjustments.
@@ -985,7 +982,6 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(jnp.all(state.rewards.astype(jnp.int32) == jnp.array(
             [0, 0, 0, 0], dtype=jnp.int32
         )), True)
-
 
     def test_next_round(self):
         # Exercise dealer/round/honba/kyotaku transitions and termination conditions.
