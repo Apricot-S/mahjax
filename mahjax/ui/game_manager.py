@@ -157,6 +157,8 @@ class WinnerSummary:
     fu: int
     yaku: List[str]
     yaku_japanese: List[str]
+    dora_count: int
+    ura_dora_count: int
     yakuman: int
     winning_tile: Optional[int]
     from_player: Optional[int]
@@ -172,6 +174,12 @@ class WinnerSummary:
             "yaku": self.yaku,
             "yakuEnglish": self.yaku,
             "yakuJapanese": self.yaku_japanese,
+            "yakuLocalized": {
+                "en": self.yaku,
+                "ja": self.yaku_japanese,
+            },
+            "dora": self.dora_count,
+            "uraDora": self.ura_dora_count,
             "winningTile": self.winning_tile,
             "winningTileLabel": (
                 tile_label(self.winning_tile) if self.winning_tile is not None else None
@@ -773,9 +781,18 @@ def summarise_winner(
     melds = jnp.asarray(prev_state._melds[player])
     n_meld = jnp.int32(prev_state._n_meld[player])
     riichi = jnp.bool_(prev_state._riichi[player])
+    riichi_flag = bool(np.array(riichi))
     prevalent_wind = jnp.int32(prev_state._round % 4)
     seat_wind = jnp.int32(prev_state._seat_wind[player])
     dora = jnp.asarray(_dora_array(prev_state))
+    hand_complete = hand
+    if 0 <= winning_tile < Tile.NUM_TILE_TYPE:
+        hand_complete = hand_complete.at[winning_tile].add(1)
+    flatten = Yaku.flatten(hand_complete, melds, n_meld)
+    flatten_np = np.array(flatten, dtype=np.int32)
+    dora_np = np.array(dora, dtype=np.int32)
+    visible_dora = int(np.dot(flatten_np, dora_np[0]))
+    ura_dora = int(np.dot(flatten_np, dora_np[1])) if riichi_flag else 0
     yaku_mask, fan, fu = Yaku.judge(
         hand,
         melds,
@@ -822,6 +839,8 @@ def summarise_winner(
         fu=fu_val,
         yaku=yaku_english,
         yaku_japanese=yaku_japanese,
+        dora_count=visible_dora,
+        ura_dora_count=ura_dora,
         yakuman=yakuman,
         winning_tile=winning_tile if winning_tile >= 0 else None,
         from_player=from_player,

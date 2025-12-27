@@ -137,6 +137,15 @@ const I18N = {
       yakuLabel: '役',
       yakuman: (count) => `${count}倍役満`,
       fanFu: (fan, fu) => `${fan}翻 ${fu}符`,
+      dora: (dora, uraDora) => {
+        if (dora > 0 && uraDora > 0) {
+          return `ドラ: ${dora}　裏ドラ: ${uraDora}`;
+        }
+        if (uraDora > 0) {
+          return `裏ドラ: ${uraDora}`;
+        }
+        return `ドラ: ${dora}`;
+      },
       winningTile: '和了牌',
       winningTileFrom: (tile, rel, name) => `和了牌: ${tile} ← ${rel}(${name})`,
       meta: (honba, kyotaku) => `本場: ${honba}　供託: ${kyotaku}`,
@@ -235,6 +244,15 @@ const I18N = {
       yakuLabel: 'Yaku',
       yakuman: (count) => `${count}x Yakuman`,
       fanFu: (fan, fu) => `${fan} han ${fu} fu`,
+      dora: (dora, uraDora) => {
+        if (dora > 0 && uraDora > 0) {
+          return `Dora: ${dora}, Ura Dora: ${uraDora}`;
+        }
+        if (uraDora > 0) {
+          return `Ura Dora: ${uraDora}`;
+        }
+        return `Dora: ${dora}`;
+      },
       winningTile: 'Winning Tile',
       winningTileFrom: (tile, rel, name) => `Winning Tile: ${tile} ← ${rel} (${name})`,
       meta: (honba, kyotaku) => `Honba: ${honba}    Riichi Sticks: ${kyotaku}`,
@@ -1025,10 +1043,37 @@ function updateSummaryOverlay(data) {
       const name = document.createElement('div');
       name.innerHTML = `<strong>${winner.name}</strong> (+${winner.pointsDelta})`;
       section.appendChild(name);
-      if (winner.yaku && winner.yaku.length) {
+      const localeCode = locale.code || currentLanguage;
+      const yakuList = (() => {
+        if (winner.yakuLocalized && typeof winner.yakuLocalized === 'object') {
+          const localized = winner.yakuLocalized[localeCode];
+          if (Array.isArray(localized) && localized.length) {
+            return localized;
+          }
+        }
+        if (localeCode === Languages.JA) {
+          if (Array.isArray(winner.yakuJapanese) && winner.yakuJapanese.length) {
+            return winner.yakuJapanese;
+          }
+        } else if (Array.isArray(winner.yakuEnglish) && winner.yakuEnglish.length) {
+          return winner.yakuEnglish;
+        }
+        if (Array.isArray(winner.yaku) && winner.yaku.length) {
+          return winner.yaku;
+        }
+        return [];
+      })();
+      if (yakuList.length) {
         const yaku = document.createElement('div');
-        yaku.textContent = `${locale.summary.yakuLabel}: ${winner.yaku.join(', ')}`;
+        yaku.textContent = `${locale.summary.yakuLabel}: ${yakuList.join(', ')}`;
         section.appendChild(yaku);
+      }
+      if (winner.dora !== undefined || winner.uraDora !== undefined) {
+        const doraCount = Number.isFinite(winner.dora) ? winner.dora : 0;
+        const uraDoraCount = Number.isFinite(winner.uraDora) ? winner.uraDora : 0;
+        const doraLine = document.createElement('div');
+        doraLine.textContent = locale.summary.dora(doraCount, uraDoraCount);
+        section.appendChild(doraLine);
       }
       const detail = document.createElement('div');
       if (winner.yakuman > 0) {

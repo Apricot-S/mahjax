@@ -1297,7 +1297,7 @@ def _ron(state: State) -> State:
     reward = reward.at[c_p].set(score + honba)
     reward = reward.at[state._last_player].set(-score - honba)
     # The Kyotaku is already paid when the RIICHI is declared, so we only need to add the Kyotaku to the winner
-    kyotaku_bonus = 10 * (state._kyotaku - state._riichi[c_p])
+    kyotaku_bonus = 10 * (state._kyotaku)
     reward = reward.at[c_p].add(kyotaku_bonus)
     score = state._score + jnp.float32(reward)
     return state.replace(  # type:ignore
