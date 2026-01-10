@@ -21,7 +21,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from mahjax._src.types import Array
-from mahjax.no_red_mahjong.hand import THIRTEEN_ORPHAN_IDX
+from mahjax.red_mahjong.hand import THIRTEEN_ORPHAN_IDX
 
 DIR = os.path.join(os.path.dirname(__file__), "../_src/cache")
 
