@@ -21,9 +21,9 @@ import jax.numpy as jnp
 import numpy as np
 
 from mahjax._src.types import Array
-from mahjax.no_red_mahjong.action import Action
-from mahjax.no_red_mahjong.hand import Hand
-from mahjax.no_red_mahjong.meld import EMPTY_MELD, Meld
+from mahjax.red_mahjong.action import Action
+from mahjax.red_mahjong.hand import Hand
+from mahjax.red_mahjong.meld import EMPTY_MELD, Meld
 
 DIR = os.path.join(os.path.dirname(__file__), "../_src/cache")
 
