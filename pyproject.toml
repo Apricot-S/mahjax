@@ -4,6 +4,7 @@ description = "GPU-accelerated vectorized mahjong simulators for reinforcement l
 readme = "README.md"
 requires-python = ">=3.9"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "Soichiro Nishimori", email = "gatikiti.630@gmail.com" }
 ]
@@ -30,9 +31,6 @@ where = ["."]
 [tool.setuptools.package-data]
 "*" = ["*.svg"]
 "mahjax.no_red_mahjong.cache" = ["*.npz"]
-
-[tool.setuptools]
-license-files = ["LICENSE"]
 
 [build-system]
 requires = ["setuptools>=77.0", "wheel"]
