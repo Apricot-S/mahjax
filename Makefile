@@ -12,16 +12,15 @@ clean:
 	find . -name "*pycache*" | xargs rm -rf
 
 format:
-	black mahjax
+	ruff format mahjax
 	blackdoc mahjax
-	isort mahjax
+	ruff check mahjax --fix
 
 check:
-	black mahjax --check --diff
+	ruff format mahjax --check
 	blackdoc mahjax --check
-	flake8 --config pyproject.toml --ignore E203,E501,W503,E704,E741 mahjax
-	mypy --config pyproject.toml mahjax  --ignore-missing-imports
-	isort mahjax --check --diff
+	ruff check mahjax
+	mypy --config pyproject.toml mahjax --ignore-missing-imports
 
 install:
 	python3 -m pip install -U pip setuptools
