@@ -20,7 +20,7 @@ check:
 	ruff format mahjax --check
 	blackdoc mahjax --check
 	ruff check mahjax
-	mypy --config pyproject.toml mahjax --ignore-missing-imports
+	mypy mahjax
 
 install:
 	python3 -m pip install -U pip setuptools
