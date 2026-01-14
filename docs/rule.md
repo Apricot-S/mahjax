@@ -38,10 +38,10 @@ We are intended to include this rule in a near furture.
 
 ### Research Projects Using/Targeting Red Rules
 
-- [suphnx](https://arxiv.org/abs/2003.13590): First top-player level mahjong agent trained by Deep RL.
-- [mjx](https://github.com/mjx-project/mjx): C++ based simulator for tenhou rule.
-- [mortal](https://github.com/Equim-chan/Mortal): Rust-based simulator + agent traning code. They also provides the [reviewer](https://mjai.ekyu.moe/) by their trained agent.
-- [naga](https://naga.dmv.nico/naga_report/top/): Agent reached 10-dan in tenhou. They also provide a service to review the playlog by the agent.
+- [Suphx](https://arxiv.org/abs/2003.13590): First top-player level mahjong agent trained by Deep RL.
+- [Mjx](https://github.com/mjx-project/mjx): C++ based simulator for tenhou rule.
+- [Mortal](https://github.com/Equim-chan/Mortal): Rust-based simulator + agent traning code. They also provides the [reviewer](https://mjai.ekyu.moe/) by their trained agent.
+- [NAGA](https://naga.dmv.nico/naga_report/top/): Agent reached 10-dan in tenhou. They also provide a service to review the playlog by the agent.
 
 ### Games Using/Supporting Red Rules
 
