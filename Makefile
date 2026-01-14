@@ -3,7 +3,7 @@
 
 install-dev:
 	python3 -m pip install -U pip
-	python3 -m pip install -r requirements/requirements-dev.txt
+	python3 -m pip install -e . --group dev
 
 clean:
 	rm -rf build
