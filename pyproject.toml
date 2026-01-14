@@ -47,6 +47,7 @@ dev = [
     { include-group = "lint" },
     { include-group = "typing" },
     { include-group = "test" },
+    { include-group = "docs" },
 ]
 lint = [
     "blackdoc>=0.3.9",
