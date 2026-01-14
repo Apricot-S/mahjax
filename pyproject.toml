@@ -45,7 +45,7 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = ["C90", "E", "F", "I", "W"]
-ignore = ["E203", "E501", "E704", "E741", "W503"]
+ignore = ["E501", "E741"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 18
