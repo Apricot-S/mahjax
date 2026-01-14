@@ -22,7 +22,7 @@ dependencies = [
     "jax>=0.4.28",
     "svgwrite>=1.4.3",
     "typing-extensions>=4.2.0",
-    "uvicorn>=0.40.0",
+    "uvicorn>=0.39.0",
 ]
 
 [project.urls]
