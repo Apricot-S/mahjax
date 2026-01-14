@@ -16,14 +16,20 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-dynamic = ["version", "dependencies"]
+dynamic = ["version"]
+dependencies = [
+    "fastapi>=0.128.0",
+    "jax>=0.4.28",
+    "svgwrite>=1.4.3",
+    "typing-extensions>=4.2.0",
+    "uvicorn>=0.40.0",
+]
 
 [project.urls]
 "Source" = "https://github.com/nissymori/mahjax"
 
 [tool.setuptools.dynamic]
 version = { attr = "mahjax.__version__" }
-dependencies = { file = ["requirements.txt"] }
 
 [tool.setuptools.packages.find]
 where = ["."]
