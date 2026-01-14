@@ -3,7 +3,8 @@ name = "mahjax"
 description = "GPU-accelerated vectorized mahjong simulators for reinforcement learning"
 readme = "README.md"
 requires-python = ">=3.9"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [
     { name = "Soichiro Nishimori", email = "gatikiti.630@gmail.com" }
 ]
@@ -31,18 +32,22 @@ where = ["."]
 "*" = ["*.svg"]
 "mahjax.no_red_mahjong.cache" = ["*.npz"]
 
-[tool.setuptools]
-license-files = []
-
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 120
 
-[flake8]
-max-line-length = 120
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["C90", "E", "F", "I", "W"]
+ignore = ["E501", "E741"]
+
+[tool.ruff.lint.mccabe]
 max-complexity = 18
 
 [tool.isort]
