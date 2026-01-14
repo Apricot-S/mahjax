@@ -9,7 +9,7 @@ pip install mahjax
 uvicorn mahjax.ui.app:create_app --host 0.0.0.0 --port 8000
 ```
 
-You need Python 3.10+, a matching JAX wheel (install it beforehand), and the runtime deps listed in `requirements.txt` (`fastapi`, `uvicorn`, `svgwrite`, `typing_extensions`). Use `--reload` while developing but turn it off in production.
+You need Python 3.10+. Use `--reload` while developing but turn it off in production.
 
 ## Core Features
 
