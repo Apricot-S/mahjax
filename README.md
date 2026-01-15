@@ -11,7 +11,7 @@
   <img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="23%">
 </div>
 
-## MahJax
+# MahJax
 **A GPU-Accelerated Mahjong Simulator for Reinforcement Learning in [JAX](https://github.com/google/jax)**
 
 Japanese Riichi Mahjong is a complex board game that presents a unique combination of **imperfect information**, **multi-player (>2) competition**, **stochastic dynamics**, and **high-dimensional inputs**.
