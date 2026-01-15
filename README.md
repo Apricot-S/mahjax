@@ -12,6 +12,11 @@
 </div>
 
 # MahJax
+
+[![PyPI](https://img.shields.io/pypi/v/mahjax.svg)](https://pypi.org/project/mahjax)
+[![License](https://img.shields.io/pypi/l/mahjax.svg)](https://pypi.org/project/mahjax)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/mahjax.svg)](https://pypi.org/project/mahjax)
+
 **A GPU-Accelerated Mahjong Simulator for Reinforcement Learning in [JAX](https://github.com/google/jax)**
 
 Japanese Riichi Mahjong is a complex board game that presents a unique combination of **imperfect information**, **multi-player (>2) competition**, **stochastic dynamics**, and **high-dimensional inputs**.
