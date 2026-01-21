@@ -11,7 +11,12 @@
   <img src="https://github.com/nissymori/mahjax/blob/main/docs/assets/random.gif" width="23%">
 </div>
 
-## MahJax
+# MahJax
+
+[![PyPI](https://img.shields.io/pypi/v/mahjax.svg)](https://pypi.org/project/mahjax)
+[![License](https://img.shields.io/pypi/l/mahjax.svg)](https://pypi.org/project/mahjax)
+[![Supported Python versions](https://img.shields.io/pypi/pyversions/mahjax.svg)](https://pypi.org/project/mahjax)
+
 **A GPU-Accelerated Mahjong Simulator for Reinforcement Learning in [JAX](https://github.com/google/jax)**
 
 Japanese Riichi Mahjong is a complex board game that presents a unique combination of **imperfect information**, **multi-player (>2) competition**, **stochastic dynamics**, and **high-dimensional inputs**.
@@ -138,20 +143,3 @@ Paper comming soon.
 - [habara-k](https://github.com/habara-k): For developing core JAX components such as shanten and Yaku calculation.
 - [OkanoShinri](https://github.com/OkanoShinri): For the initial implementation of MahJax and its SVG visualization.
 - [easonyu0203](easonyu0203): For advise on PPO implementation in multi-player imperfect information game.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
