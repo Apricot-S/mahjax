@@ -3,7 +3,7 @@
 
 install-dev:
 	python3 -m pip install -U pip
-	python3 -m pip install -r requirements/requirements-dev.txt
+	python3 -m pip install -e . --group dev
 
 clean:
 	rm -rf build
@@ -20,7 +20,7 @@ check:
 	ruff format mahjax --check
 	blackdoc mahjax --check
 	ruff check mahjax
-	mypy --config pyproject.toml mahjax --ignore-missing-imports
+	mypy mahjax
 
 install:
 	python3 -m pip install -U pip setuptools
