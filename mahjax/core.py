@@ -117,8 +117,14 @@ class State(abc.ABC):
         Returns:
             str: SVG string
         """
-        from mahjax._src.visualizer import Visualizer
+        if self.env_id in ("mahjong", "red_mahjong", "no_red_mahjong"):
+            from mahjax._src.visualizer import _to_red_env_state
+            from mahjax.red_mahjong.visualization import render_round_svg
 
+            del color_theme, scale
+            return render_round_svg(_to_red_env_state(self), show_all_hands=True)
+
+        from mahjax._src.visualizer import Visualizer
         v = Visualizer(color_theme=color_theme, scale=scale)
         return v.get_dwg(states=self, use_english=use_english).tostring()
 
@@ -271,11 +277,12 @@ def make(env_id: EnvId, **kwargs):  # noqa: C901
         ```
     """
     from mahjax.no_red_mahjong.env import NoRedMahjong
+    from mahjax.red_mahjong.env import RedMahjong
 
     if env_id == "no_red_mahjong":
         return NoRedMahjong(**kwargs)
     elif env_id == "red_mahjong":
-        raise NotImplementedError("Red mahjong is not implemented yet")
+        return RedMahjong(**kwargs)
     else:
         raise ValueError(
             f"Wrong env_id '{env_id}' is passed. Available ids are: \n{available_envs()}"

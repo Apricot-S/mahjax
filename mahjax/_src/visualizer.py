@@ -195,41 +195,61 @@ class Visualizer:
         return dwg
 
     def _set_config_by_state(self, _state: State, use_english=False):  # noqa: C901
-        assert _state.env_id == "mahjong"
-        from mahjax._src.dwg.mahjong_visualizer import (_make_mahjong_dwg_en,
-                                                        _make_mahjong_dwg_jp)
-
-        self.config["GRID_SIZE"] = 10
-        self.config["BOARD_WIDTH"] = 70
-        self.config["BOARD_HEIGHT"] = 70
-        self._make_dwg_group = (
-            _make_mahjong_dwg_en if use_english else _make_mahjong_dwg_jp
-        )  # type:ignore
-        if (
-            self.config["COLOR_THEME"] is None and self.config["COLOR_THEME"] == "dark"
-        ) or self.config["COLOR_THEME"] == "dark":
-            self.config["COLOR_SET"] = ColorSet(
-                "black",
-                "white",
-                "black",
-                "black",
-                "white",
-                "black",
-                "black",
-            )
-        else:
-            self.config["COLOR_SET"] = ColorSet(
-                "black",
-                "white",
-                "black",
-                "black",
-                "white",
-                "black",
-                "black",
-            )
+        del use_english
+        raise NotImplementedError(
+            "DWG-based board renderer is removed for mahjong. Use SVG-based renderer via state.to_svg()/save_svg()."
+        )
 
     def _get_nth_state(self, states: State, i):
         return jax.tree_util.tree_map(lambda x: x[i], states)
+
+
+def _to_red_env_state(state: State):
+    """Convert no_red style state to red visualizer state."""
+    from mahjax.red_mahjong.state import default_state
+
+    if hasattr(state, "players") and hasattr(state, "round_state"):
+        return state
+
+    rs = default_state()
+    hand34 = state._hand.astype("int8")
+    hand37 = jax.numpy.zeros((4, 37), dtype=jax.numpy.int8).at[:, :34].set(hand34)
+    legal_4p = state._legal_action_mask_4p
+    if legal_4p.shape[1] < rs.players.legal_action_mask.shape[1]:
+        pad = rs.players.legal_action_mask.shape[1] - legal_4p.shape[1]
+        legal_4p = jax.numpy.pad(legal_4p, ((0, 0), (0, pad)), constant_values=False)
+    legal_1p = state.legal_action_mask
+    if legal_1p.shape[0] < rs.legal_action_mask.shape[0]:
+        pad = rs.legal_action_mask.shape[0] - legal_1p.shape[0]
+        legal_1p = jax.numpy.pad(legal_1p, (0, pad), constant_values=False)
+    return rs.replace(
+        current_player=state.current_player,
+        legal_action_mask=legal_1p,
+        players=rs.players.replace(
+            hand=hand34,
+            hand_with_red=hand37,
+            legal_action_mask=legal_4p,
+            melds=state._melds,
+            meld_counts=state._n_meld,
+            river=state._river,
+            discard_counts=state._n_river,
+            riichi=state._riichi,
+        ),
+        round_state=rs.round_state.replace(
+            round=state._round,
+            honba=state._honba,
+            dealer=state._dealer,
+            score=state._score.astype(jax.numpy.int32),
+            next_deck_ix=state._next_deck_ix.astype(jax.numpy.int32),
+            last_deck_ix=state._last_deck_ix.astype(jax.numpy.int8),
+            dora_indicators=state._dora_indicators,
+            last_draw=state._last_draw,
+            target=state._target,
+        ),
+        rewards=state.rewards,
+        terminated=state.terminated,
+        truncated=state.truncated,
+    )
 
 
 def save_svg(
@@ -242,6 +262,10 @@ def save_svg(
 ) -> None:
     if state.env_id.startswith("minatar"):
         state.save_svg(filename=filename)
+    elif state.env_id == "mahjong":
+        from mahjax.red_mahjong.visualization import save_svg as save_svg_assets
+
+        save_svg_assets(_to_red_env_state(state), filename)
     else:
         v = Visualizer(color_theme=color_theme, scale=scale)
         v.get_dwg(states=state, use_english=use_english).saveas(filename)
@@ -259,6 +283,11 @@ def save_svg_animation(
     assert not states[0].env_id.startswith(
         "minatar"
     ), "MinAtar does not support svg animation."
+    if states[0].env_id == "mahjong":
+        from mahjax.red_mahjong.visualization import save_svg_animation as save_svg_animation_assets
+
+        save_svg_animation_assets([_to_red_env_state(s) for s in states], filename, frame_duration_seconds=frame_duration_seconds or global_config.frame_duration_seconds)
+        return
     v = Visualizer(color_theme=color_theme, scale=scale)
 
     if frame_duration_seconds is None:
