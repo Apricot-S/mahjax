@@ -27,3 +27,5 @@ log
 *.o*
 workspace/*
 tenhou
+tests/red_mahjong/assets
+tests/red_mahjong/test_replay.py
