@@ -35,7 +35,7 @@ version = { attr = "mahjax.__version__" }
 where = ["."]
 
 [tool.setuptools.package-data]
-"*" = ["*.svg"]
+"*" = ["*.svg", "*/*.svg"]
 "mahjax.no_red_mahjong.cache" = ["*.npz"]
 
 [build-system]

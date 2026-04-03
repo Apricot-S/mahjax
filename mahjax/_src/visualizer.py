@@ -29,6 +29,7 @@ import svgwrite  # type: ignore
 from mahjax.core import State
 
 ColorTheme = Literal["light", "dark"]
+Language = Literal["ja", "en"]
 
 
 @dataclass
@@ -258,14 +259,17 @@ def save_svg(
     *,
     color_theme: Optional[Literal["light", "dark"]] = None,
     scale: Optional[float] = None,
+    language: Language = "ja",
     use_english: bool = False,
 ) -> None:
+    if use_english:
+        language = "en"
     if state.env_id.startswith("minatar"):
         state.save_svg(filename=filename)
     elif state.env_id == "mahjong":
         from mahjax.red_mahjong.visualization import save_svg as save_svg_assets
 
-        save_svg_assets(_to_red_env_state(state), filename)
+        save_svg_assets(_to_red_env_state(state), filename, language=language)
     else:
         v = Visualizer(color_theme=color_theme, scale=scale)
         v.get_dwg(states=state, use_english=use_english).saveas(filename)
@@ -278,15 +282,24 @@ def save_svg_animation(
     color_theme: Optional[Literal["light", "dark"]] = None,
     scale: Optional[float] = None,
     frame_duration_seconds: Optional[float] = None,
+    language: Language = "ja",
     use_english: bool = False,
 ) -> None:
+    if use_english:
+        language = "en"
     assert not states[0].env_id.startswith(
         "minatar"
     ), "MinAtar does not support svg animation."
     if states[0].env_id == "mahjong":
         from mahjax.red_mahjong.visualization import save_svg_animation as save_svg_animation_assets
 
-        save_svg_animation_assets([_to_red_env_state(s) for s in states], filename, frame_duration_seconds=frame_duration_seconds or global_config.frame_duration_seconds)
+        save_svg_animation_assets(
+            [_to_red_env_state(s) for s in states],
+            filename,
+            frame_duration_seconds=frame_duration_seconds
+            or global_config.frame_duration_seconds,
+            language=language,
+        )
         return
     v = Visualizer(color_theme=color_theme, scale=scale)
 

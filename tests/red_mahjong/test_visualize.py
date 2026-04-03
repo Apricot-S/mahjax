@@ -20,6 +20,15 @@ def test_render_round_svg_contains_svg_tag() -> None:
     assert "</svg>" in svg
 
 
+def test_render_round_svg_supports_english_language() -> None:
+    state = _collect_states(0)[0]
+    svg_ja = render_round_svg(state, show_all_hands=True, language="ja")
+    svg_en = render_round_svg(state, show_all_hands=True, language="en")
+    assert "東1局" in svg_ja
+    assert "East 1" in svg_en
+    assert svg_ja != svg_en
+
+
 def test_save_play_history_svg_for_10_steps() -> None:
     states = _collect_states(10)
     out = Path("fig/red_mahjong_10steps_test.svg")

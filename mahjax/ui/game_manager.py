@@ -477,8 +477,14 @@ class GameSession:
             red_state,
             show_all_hands=reveal_all_hands,
             visible_player=0,
+            language="ja",
         )
-        svg_english = svg_japanese
+        svg_english = render_round_svg(
+            red_state,
+            show_all_hands=reveal_all_hands,
+            visible_player=0,
+            language="en",
+        )
         legal_view = None
         advance_view: Optional[Dict[str, Any]] = None
         is_human_turn = int(state.current_player) == self.human_seat
@@ -511,7 +517,7 @@ class GameSession:
             "scores": scores,
             "rewards": rewards,
             "rankOrder": rank_order,
-            "svg": svg_english,
+            "svg": svg_japanese,
             "svgJapanese": svg_japanese,
             "svgEnglish": svg_english,
             "legalActions": legal_view,
@@ -541,8 +547,14 @@ class GameSession:
             oriented,
             show_all_hands=reveal_all_hands,
             visible_player=0,
+            language="ja",
         )
-        svg_en = svg_ja
+        svg_en = render_round_svg(
+            oriented,
+            show_all_hands=reveal_all_hands,
+            visible_player=0,
+            language="en",
+        )
         legal_view = None
         advance_view: Optional[Dict[str, Any]] = None
         is_human_turn = int(state.current_player) == self.human_seat
@@ -578,7 +590,7 @@ class GameSession:
             "scores": scores,
             "rewards": rewards,
             "rankOrder": rank_order,
-            "svg": svg_en,
+            "svg": svg_ja,
             "svgJapanese": svg_ja,
             "svgEnglish": svg_en,
             "legalActions": legal_view,

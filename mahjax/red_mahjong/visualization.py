@@ -4,6 +4,7 @@ import base64
 import importlib.resources as resources
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 import jax
 import jax.numpy as jnp
@@ -29,9 +30,23 @@ _HAND_X = 120.0
 _HAND_Y = 640.0
 _RIVER_X0 = _CENTER - 3.0 * _W
 _RIVER_Y0 = 450.0
-_WIND_JP = ("東", "南", "西", "北")
 _DORA_SCALE = 0.62
 _DORA_GAP = 4.0
+Language = Literal["ja", "en"]
+_PLAYER_WIND_LABELS = {
+    "ja": ("東", "南", "西", "北"),
+    "en": ("E", "S", "W", "N"),
+}
+_ROUND_WIND_LABELS = {
+    "ja": ("東", "南"),
+    "en": ("East", "South"),
+}
+
+
+def _normalize_language(language: Language | str) -> Language:
+    if language not in ("ja", "en"):
+        raise ValueError(f"Unsupported language: {language}")
+    return language
 
 
 def _is_red_tile(tile: int) -> bool:
@@ -73,9 +88,9 @@ def _tile_asset_name(tile: int) -> str:
     return "back.svg"
 
 
-@lru_cache(maxsize=256)
-def _tile_data_uri(name: str) -> str:
-    data = resources.files("mahjax._src.assets.tiles").joinpath(name).read_bytes()
+@lru_cache(maxsize=512)
+def _tile_data_uri(language: Language, name: str) -> str:
+    data = resources.files("mahjax._src.assets.tiles").joinpath(language, name).read_bytes()
     return "data:image/svg+xml;base64," + base64.b64encode(data).decode("ascii")
 
 
@@ -83,12 +98,13 @@ def _image_tag(
     tile: int,
     x: float,
     y: float,
+    language: Language,
     rotate: bool = False,
     opacity: float = 1.0,
     rotate_anchor: str = "center",
     rotate_offset: tuple[float, float] | None = None,
 ) -> str:
-    href = _tile_data_uri(_tile_asset_name(tile))
+    href = _tile_data_uri(language, _tile_asset_name(tile))
     transform = ""
     if rotate:
         if rotate_anchor == "topleft":
@@ -113,8 +129,15 @@ def _image_tag(
     )
 
 
-def _image_tag_scaled(tile: int, x: float, y: float, scale: float, opacity: float = 1.0) -> str:
-    href = _tile_data_uri(_tile_asset_name(tile))
+def _image_tag_scaled(
+    tile: int,
+    x: float,
+    y: float,
+    scale: float,
+    language: Language,
+    opacity: float = 1.0,
+) -> str:
+    href = _tile_data_uri(language, _tile_asset_name(tile))
     w = _W * scale
     h = _H * scale
     return (
@@ -248,10 +271,14 @@ def _meld_layout(meld: jnp.ndarray) -> list[tuple[int, bool]]:
 
 
 def _player_group(
-    state: EnvState, player: int, show_all_hands: bool, visible_player: int
+    state: EnvState,
+    player: int,
+    show_all_hands: bool,
+    visible_player: int,
+    language: Language,
 ) -> str:
     parts: list[str] = []
-    seat_wind = _WIND_JP[(player - int(state.round_state.dealer)) % 4]
+    seat_wind = _PLAYER_WIND_LABELS[language][(player - int(state.round_state.dealer)) % 4]
     score = int(state.round_state.score[player]) * 100
     parts.append(
         f'<text x="265" y="435" font-size="22" fill="#000">{seat_wind}</text>'
@@ -268,18 +295,18 @@ def _player_group(
     offset = 0.0
     if not show_all_hands and player != int(visible_player):
         for _ in range(len(tiles)):
-            parts.append(_image_tag(-1, _HAND_X + offset, _HAND_Y))
+            parts.append(_image_tag(-1, _HAND_X + offset, _HAND_Y, language))
             offset += _W
     else:
         shown = tiles[:]
         if draw_tile >= 0 and draw_tile in shown:
             shown.remove(draw_tile)
         for tile in shown:
-            parts.append(_image_tag(tile, _HAND_X + offset, _HAND_Y))
+            parts.append(_image_tag(tile, _HAND_X + offset, _HAND_Y, language))
             offset += _W
         if draw_tile >= 0:
             offset += _W * 0.5
-            parts.append(_image_tag(draw_tile, _HAND_X + offset, _HAND_Y))
+            parts.append(_image_tag(draw_tile, _HAND_X + offset, _HAND_Y, language))
             offset += _W
 
     offset += _W
@@ -296,13 +323,14 @@ def _player_group(
                         tile,
                         _HAND_X + offset,
                         _HAND_Y,
+                        language,
                         rotate=True,
                         rotate_anchor="slot",
                     )
                 )
                 offset += _H
             else:
-                parts.append(_image_tag(tile, _HAND_X + offset, _HAND_Y))
+                parts.append(_image_tag(tile, _HAND_X + offset, _HAND_Y, language))
                 offset += _W
         offset += _W
 
@@ -322,6 +350,7 @@ def _player_group(
                     tile,
                     x,
                     y,
+                    language,
                     rotate=True,
                     opacity=opacity,
                 )
@@ -329,7 +358,7 @@ def _player_group(
             if tsumogiri:
                 parts.append(_river_tsumogiri_overlay(x, y, rotate=True))
         else:
-            parts.append(_image_tag(tile, x, y, opacity=opacity))
+            parts.append(_image_tag(tile, x, y, language, opacity=opacity))
             if tsumogiri:
                 parts.append(_river_tsumogiri_overlay(x, y, rotate=False))
         # Riichi declaration tile is placed sideways and consumes one extra slot.
@@ -344,12 +373,19 @@ def render_round_svg(
     state: EnvState,
     show_all_hands: bool = True,
     visible_player: int = 0,
+    language: Language = "ja",
 ) -> str:
+    language = _normalize_language(language)
     dora = [int(tile) for tile in jnp.asarray(state.round_state.dora_indicators) if int(tile) >= 0][:4]
     round_index = int(state.round_state.round)
-    round_label = f"{_WIND_JP[round_index // 4]}{round_index % 4 + 1}局"
-    if int(state.round_state.honba) > 0:
-        round_label += f" {int(state.round_state.honba)}本場"
+    if language == "ja":
+        round_label = f"{_ROUND_WIND_LABELS[language][round_index // 4]}{round_index % 4 + 1}局"
+        if int(state.round_state.honba) > 0:
+            round_label += f" {int(state.round_state.honba)}本場"
+    else:
+        round_label = f"{_ROUND_WIND_LABELS[language][round_index // 4]} {round_index % 4 + 1}"
+        if int(state.round_state.honba) > 0:
+            round_label += f" {int(state.round_state.honba)} Honba"
     remaining_tiles = max(int(state.round_state.next_deck_ix) - int(state.round_state.last_deck_ix) + 1, 0)
 
     parts: list[str] = [
@@ -364,7 +400,15 @@ def render_round_svg(
         dx = _CENTER - total_w / 2.0
         dy = _CENTER - 2.0
         for i, tile in enumerate(dora):
-            parts.append(_image_tag_scaled(tile, dx + i * (dora_w + _DORA_GAP), dy, _DORA_SCALE))
+            parts.append(
+                _image_tag_scaled(
+                    tile,
+                    dx + i * (dora_w + _DORA_GAP),
+                    dy,
+                    _DORA_SCALE,
+                    language,
+                )
+            )
     parts.append(
         f'<text x="{_CENTER-15:.1f}" y="{_CENTER+45:.1f}" font-size="20" fill="#000">x {remaining_tiles}</text>'
     )
@@ -374,14 +418,23 @@ def render_round_svg(
             player,
             show_all_hands=show_all_hands,
             visible_player=visible_player,
+            language=language,
         )
         parts.append(f'<g transform="rotate({-90*player} {_CENTER:.1f} {_CENTER:.1f})">{group}</g>')
     parts.append("</svg>")
     return "".join(parts)
 
 
-def save_svg(state: EnvState, filename: str | Path, show_all_hands: bool = True) -> None:
-    Path(filename).write_text(render_round_svg(state, show_all_hands=show_all_hands), encoding="utf-8")
+def save_svg(
+    state: EnvState,
+    filename: str | Path,
+    show_all_hands: bool = True,
+    language: Language = "ja",
+) -> None:
+    Path(filename).write_text(
+        render_round_svg(state, show_all_hands=show_all_hands, language=language),
+        encoding="utf-8",
+    )
 
 
 def render_play_history_svg(
@@ -389,7 +442,9 @@ def render_play_history_svg(
     columns: int = 3,
     padding: float = 20.0,
     show_all_hands: bool = True,
+    language: Language = "ja",
 ) -> str:
+    language = _normalize_language(language)
     if columns <= 0:
         raise ValueError("columns must be >= 1")
     if not states:
@@ -402,7 +457,7 @@ def render_play_history_svg(
         f'<rect x="0" y="0" width="{width:.0f}" height="{height:.0f}" fill="#ffffff" />',
     ]
     for idx, state in enumerate(states):
-        svg = render_round_svg(state, show_all_hands=show_all_hands)
+        svg = render_round_svg(state, show_all_hands=show_all_hands, language=language)
         uri = "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("ascii")
         col = idx % columns
         row = idx // columns
@@ -421,9 +476,16 @@ def save_play_history_svg(
     columns: int = 3,
     padding: float = 20.0,
     show_all_hands: bool = True,
+    language: Language = "ja",
 ) -> None:
     Path(filename).write_text(
-        render_play_history_svg(states, columns=columns, padding=padding, show_all_hands=show_all_hands),
+        render_play_history_svg(
+            states,
+            columns=columns,
+            padding=padding,
+            show_all_hands=show_all_hands,
+            language=language,
+        ),
         encoding="utf-8",
     )
 
@@ -432,7 +494,9 @@ def render_svg_animation(
     states: list[EnvState],
     frame_duration_seconds: float = 0.2,
     show_all_hands: bool = True,
+    language: Language = "ja",
 ) -> str:
+    language = _normalize_language(language)
     if not states:
         raise ValueError("states must not be empty")
     total_seconds = frame_duration_seconds * len(states)
@@ -441,7 +505,7 @@ def render_svg_animation(
     style += f"@keyframes _k{{0%,{step}%{{visibility:visible}}{step * 1.000001}%,100%{{visibility:hidden}}}}"
     images: list[str] = []
     for i, state in enumerate(states):
-        svg = render_round_svg(state, show_all_hands=show_all_hands)
+        svg = render_round_svg(state, show_all_hands=show_all_hands, language=language)
         uri = "data:image/svg+xml;base64," + base64.b64encode(svg.encode("utf-8")).decode("ascii")
         frame_id = f"_fr{i:x}"
         images.append(
@@ -461,12 +525,14 @@ def save_svg_animation(
     filename: str | Path,
     frame_duration_seconds: float = 0.2,
     show_all_hands: bool = True,
+    language: Language = "ja",
 ) -> None:
     Path(filename).write_text(
         render_svg_animation(
             states,
             frame_duration_seconds=frame_duration_seconds,
             show_all_hands=show_all_hands,
+            language=language,
         ),
         encoding="utf-8",
     )
@@ -511,10 +577,11 @@ def random_play_and_save_svg(
     filename: str | Path,
     seed: int = 0,
     max_steps: int = 80,
+    language: Language = "ja",
 ) -> EnvState:
     history = generate_play_history_states(seed=seed, max_steps=max_steps, policy="random")
     state = history[-1]
-    save_svg(state, filename)
+    save_svg(state, filename, language=language)
     return state
 
 
@@ -525,6 +592,7 @@ def random_play_history_and_save_svg(
     columns: int = 3,
     padding: float = 20.0,
     show_all_hands: bool = True,
+    language: Language = "ja",
 ) -> EnvState:
     history = generate_play_history_states(seed=seed, max_steps=max_steps, policy="random")
     state = history[-1]
@@ -534,6 +602,7 @@ def random_play_history_and_save_svg(
         columns=columns,
         padding=padding,
         show_all_hands=show_all_hands,
+        language=language,
     )
     return state
 
@@ -545,6 +614,7 @@ def play_history_and_save_svg_animation(
     frame_duration_seconds: float = 0.2,
     show_all_hands: bool = True,
     policy: str = "first_legal",
+    language: Language = "ja",
 ) -> EnvState:
     history = generate_play_history_states(seed=seed, max_steps=max_steps, policy=policy)
     save_svg_animation(
@@ -552,5 +622,6 @@ def play_history_and_save_svg_animation(
         filename,
         frame_duration_seconds=frame_duration_seconds,
         show_all_hands=show_all_hands,
+        language=language,
     )
     return history[-1]
