@@ -148,6 +148,8 @@ def _image_tag_scaled(
 
 def _river_tsumogiri_overlay(x: float, y: float, rotate: bool = False) -> str:
     if rotate:
+        x += (_H - _W) / 2.0
+        y += (_H - _W) / 2.0
         cx = x + _W / 2.0
         cy = y + _H / 2.0
         transform = (
@@ -353,6 +355,7 @@ def _player_group(
                     language,
                     rotate=True,
                     opacity=opacity,
+                    rotate_anchor="slot",
                 )
             )
             if tsumogiri:

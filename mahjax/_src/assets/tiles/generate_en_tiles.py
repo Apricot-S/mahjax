@@ -131,10 +131,24 @@ def label_for(name: str) -> tuple[str, str]:
     return number, SUIT_COLORS[suit]
 
 
-def build_motif(name: str, border_parts: set[str]) -> tuple[str, str]:
-    _, _, group_open, path_d = read_svg(name)
-    kept = [part for part in split_subpaths(path_d) if part not in border_parts]
-    return group_open, " ".join(kept)
+def build_motif_markup(name: str, border_parts: set[str]) -> str:
+    text = (JA / name).read_text()
+    groups = re.findall(r"(<g[^>]*>)(.*?)</g>", text, flags=re.DOTALL)
+    chunks: list[str] = []
+    for group_open, group_body in groups:
+        paths = re.findall(r'<path d="([^"]+)"', group_body)
+        kept_paths = []
+        for path_d in paths:
+            kept = [part for part in split_subpaths(path_d) if part not in border_parts]
+            if kept:
+                kept_paths.append(" ".join(kept))
+        if kept_paths:
+            body = "".join(
+                f'<path d="{path_d}" vector-effect="non-scaling-stroke"/>'
+                for path_d in kept_paths
+            )
+            chunks.append(f"{group_open}{body}</g>")
+    return "".join(chunks)
 
 
 def main() -> None:
@@ -174,7 +188,7 @@ def main() -> None:
             if view_box == "0 0 29 41.5"
             else large_border_parts
         )
-        group_open, motif_d = build_motif(name, border_parts)
+        motif_markup = build_motif_markup(name, border_parts)
         label, color = label_for(name)
         text_svg = (
             f'<text x="{TEXT_X}" y="{TEXT_Y}" {TEXT_STYLE} fill="{color}">{label}</text>'
@@ -182,8 +196,12 @@ def main() -> None:
             else ""
         )
         motif_svg = ""
-        if motif_d:
-            min_x, min_y, max_x, max_y = bbox_for_path(motif_d)
+        if motif_markup:
+            path_list = re.findall(r'<path d="([^"]+)"', motif_markup)
+            min_x = min(bbox_for_path(path_d)[0] for path_d in path_list)
+            min_y = min(bbox_for_path(path_d)[1] for path_d in path_list)
+            max_x = max(bbox_for_path(path_d)[2] for path_d in path_list)
+            max_y = max(bbox_for_path(path_d)[3] for path_d in path_list)
             width = max_x - min_x
             height = max_y - min_y
             pad_x = max(MOTIF_MIN_PAD, width * MOTIF_PAD_RATIO)
@@ -199,8 +217,7 @@ def main() -> None:
                 f'<svg x="{x}" y="{y}" width="{width_box}" height="{height_box}" '
                 f'viewBox="{motif_view_box}" overflow="visible" '
                 'preserveAspectRatio="xMidYMid meet">'
-                f'{group_open}<path d="{motif_d}" '
-                'vector-effect="non-scaling-stroke"/></g></svg>'
+                f"{motif_markup}</svg>"
             )
 
         out = (
