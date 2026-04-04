@@ -124,6 +124,16 @@ app.state.manager.registry.load_callable_from_path(
 ```
 Run `uvicorn my_ui:app --port 8000`.    
 
+## Development
+
+| Rule | Status | Code |
+|------|--------|------|
+| No-Red Mahjong | ✅ | [no_red_mahjong](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjax/no_red_mahjong) |
+| Red Mahjong | 🚧 | [red_mahjong](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjax/red_mahjong) |
+| Selective Rules | 🚧 | |
+| 3-player Mahjong | 🚧 | |
+
+
 ## See also
 
 Jax based environments
