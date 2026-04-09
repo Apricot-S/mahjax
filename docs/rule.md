@@ -2,7 +2,7 @@
 
 Mahjax currently implements 4-player Japanese Riichi Mahjong variants.
 To get familiar with the basic rules, please refer to the official rulebook:
-[European Riichi Mahjong Rules (2016, EN)](http://mahjong-europe.org/portal/images/docs/Riichi-rules-2016-EN.pdf).
+[European Riichi Mahjong Rules (2025, EN)](http://mahjong-europe.org/portal/images/docs/Riichi-rules-2025-EN.pdf).
 
 While different variants require different strategies due to their specific rules, we believe the core skills they demand are the same:
 
@@ -46,8 +46,7 @@ We are intended to include this rule in a near furture.
 ### Games Using/Supporting Red Rules
 
 - [Tenhou](https://tenhou.net/)
-- [Mahjong Soul](https://mahjongsoul.yo-star.com/)
-- [MJ Mahjong](https://sega-mj.com/)
+- [Mahjong Soul](https://mahjongsoul.yo-star.com/) (There are minor differences.)
 
 These environments typically feature fast-paced play and high average hand values, making them attractive both for players and for AI research.
 
