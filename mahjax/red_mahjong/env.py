@@ -18,6 +18,8 @@ from typing import Dict, List, Optional, Tuple
 import jax
 import jax.numpy as jnp
 
+from mahjax.core import Env
+
 from .action import Action
 from .constants import DORA_ARRAY, FALSE, FIRST_DRAW_IDX, TILE_RANGE, TRUE, ZERO_MASK_1D, ZERO_MASK_2D
 from .hand import Hand
@@ -249,7 +251,7 @@ def yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
     return has_yaku, fan42.astype(jnp.int32), fu42.astype(jnp.int32)
 
 
-class RedMahjong:
+class RedMahjong(Env):
     def __init__(
         self,
         one_round: bool = False,
