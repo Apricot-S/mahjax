@@ -312,7 +312,7 @@ def test_pao_and_nagashi_mangan_scoring() -> None:
         ),
     )
     nagashi_after = _abortive_draw_normal(nagashi_state)
-    expected_nagashi = _mangan_tsumo(jnp.int8(0), jnp.int8(0), jnp.int8(1))
+    expected_nagashi = _mangan_tsumo(jnp.int8(0), jnp.int8(0), jnp.int8(0))
 
     assert jnp.array_equal(nagashi_after.rewards, expected_nagashi.astype(jnp.float32))
 

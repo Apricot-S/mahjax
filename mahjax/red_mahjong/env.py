@@ -706,10 +706,13 @@ def _draw(state: State, game_config: Optional[GameConfig] = None) -> State:
     hand_with_red = state.players.hand_with_red.at[c_p].set(
         Hand.add(state.players.hand_with_red[c_p], new_tile)
     )
+    # ``is_haitei`` is a property of the newly drawn state. The action mask must
+    # see that updated flag so last-live-wall tsumo is legal even for open hands.
+    draw_eval_state = _replace_state(state, is_haitei=is_haitei)
     legal_action_mask_c_p = jax.lax.select(
         state.players.riichi[c_p],
-        _make_legal_action_mask_after_draw_w_riichi(state, hand_with_red, c_p, new_tile),
-        _make_legal_action_mask_after_draw(state, hand_with_red, c_p, new_tile, game_config),
+        _make_legal_action_mask_after_draw_w_riichi(draw_eval_state, hand_with_red, c_p, new_tile),
+        _make_legal_action_mask_after_draw(draw_eval_state, hand_with_red, c_p, new_tile, game_config),
     )
     legal_action_mask_4p = state.players.legal_action_mask.at[c_p, :].set(legal_action_mask_c_p)
     normal_state = _replace_state(
@@ -871,7 +874,6 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
         fu=fu,
         can_win=state.players.can_win.at[c_p].set(can_win),
         furiten_by_discard=state.players.furiten_by_discard.at[c_p].set(is_furiten_by_river),
-        can_after_kan=FALSE,
         ippatsu=state.players.ippatsu.at[c_p].set(FALSE),
     )
     legal_action_mask_4p = jax.vmap(
@@ -901,6 +903,11 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     no_meld_player = jnp.logical_not(can_any)
     # Check if the game is ended (abortive_draw_normal)
     is_abortive_draw_normal = state.round_state.next_deck_ix < _live_wall_end_ix(state)
+    state = _replace_state(
+        state,
+        can_after_kan=FALSE,
+        is_haitei=state.round_state.is_haitei | (is_abortive_draw_normal & ~had_after_kan),
+    )
     state = jax.lax.cond(
         is_three_player_ron,
         lambda: _trigger_special_abortive_draw(
@@ -945,7 +952,13 @@ def _make_legal_action_mask_after_discard(
     - For melds (CHI, PON, OPEN_KAN)
     - For RON
     """
-    haitei = state.round_state.is_haitei
+    # ``Houtei`` is the final discard before exhaustive draw. Normal last-tile
+    # draws propagate via ``is_haitei``; after-kan discard chains can also be
+    # the final discard once the live wall is exhausted, so we detect that here.
+    haitei = state.round_state.is_haitei | (
+        (state.round_state.next_deck_ix < _live_wall_end_ix(state))
+        & ~state.round_state.can_after_kan
+    )
     riichi = state.players.riichi[c_p]
     discarder = state.current_player
     src = (discarder - c_p) % 4
@@ -1167,6 +1180,8 @@ def _draw_after_kan(state: State, game_config: Optional[GameConfig] = None):
     state = jax.lax.cond(
         kan_dora_pre_flipped, _after_kan_dora_already_done, _after_kan_flip_dora, state
     )
+    # Rinshan draws come from the dead wall and never qualify as Haitei.
+    is_haitei = FALSE
     hand_with_red = state.players.hand_with_red.at[c_p].set(
         Hand.add(state.players.hand_with_red[c_p], rinshan_tile)
     )
@@ -1177,10 +1192,11 @@ def _draw_after_kan(state: State, game_config: Optional[GameConfig] = None):
     can_ron = jax.vmap(Hand.can_ron, in_axes=(None, 0))(state.players.hand[c_p], TILE_RANGE)
     state = _replace_state(state, can_win=state.players.can_win.at[c_p].set(can_ron))
     is_riichi = state.players.riichi[c_p]
+    draw_eval_state = _replace_state(state, is_haitei=is_haitei)
     legal_action_mask_c_p = jax.lax.cond(
         is_riichi,
-        lambda: _make_legal_action_mask_after_draw_w_riichi(state, hand_with_red, c_p, rinshan_tile),
-        lambda: _make_legal_action_mask_after_draw(state, hand_with_red, c_p, rinshan_tile, game_config),
+        lambda: _make_legal_action_mask_after_draw_w_riichi(draw_eval_state, hand_with_red, c_p, rinshan_tile),
+        lambda: _make_legal_action_mask_after_draw(draw_eval_state, hand_with_red, c_p, rinshan_tile, game_config),
     )
     legal_action_mask_4p = state.players.legal_action_mask.at[c_p, :].set(
         legal_action_mask_c_p
@@ -1193,6 +1209,7 @@ def _draw_after_kan(state: State, game_config: Optional[GameConfig] = None):
         has_yaku=state.players.has_yaku.at[c_p, 0].set(state.players.has_yaku[c_p, 1]),
         fan=state.players.fan.at[c_p, 0].set(state.players.fan[c_p, 1]),
         fu=state.players.fu.at[c_p, 0].set(state.players.fu[c_p, 1]),
+        is_haitei=is_haitei,
     )
     return normal_state
 
@@ -1593,7 +1610,7 @@ def _ron(state: State, game_config: Optional[GameConfig] = None) -> State:
     is_ippatsu = state.players.ippatsu[c_p] & state.players.riichi[c_p]  # Ippatsu (一発)
     is_double_riichi = state.players.double_riichi[c_p]  # Double Riichi (ダブル立直)
     can_robbing_kan = state.round_state.kan_declared  # RobbingKan (槍槓)
-    is_houtei = state.round_state.is_haitei  # 河底撈魚 (reuse is_haitei timing on discard chain)
+    is_houtei = state.round_state.is_haitei & ~can_robbing_kan  # 河底撈魚
     is_yakuman = state.players.fu[c_p, 0] == 0  # When Yakuman, fu is 0
     basic_score = Yaku.score(
         state.players.fan[c_p, 0]
@@ -1675,7 +1692,7 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
     )  # Check if the game is ended (AfterKan (嶺上開花))
     is_ippatsu = state.players.ippatsu[c_p] & state.players.riichi[c_p]  # Ippatsu (一発)
     is_double_riichi = state.players.double_riichi[c_p]  # Double Riichi (ダブル立直)
-    is_haitei = state.round_state.is_haitei  # 海底摸月 (last live-wall tsumo)
+    is_haitei = state.round_state.is_haitei & ~can_after_kan  # 海底摸月 (last live-wall tsumo)
     # Check for Blessing of the Heaven/Earth (天和/地和)
     is_pure_first_turn = _is_first_turn(state.round_state.next_deck_ix) & (
         state.players.meld_counts.sum() == 0
@@ -1781,7 +1798,7 @@ def _abortive_draw_normal(state: State) -> State:
         jax.vmap(_mangan_tsumo, in_axes=(0, None, None))(
             jnp.arange(4, dtype=jnp.int32),
             state.round_state.dealer,
-            state.round_state.honba,
+            jnp.int8(0),
         )
         * is_nagashi[:, None]
     ).sum(axis=0)

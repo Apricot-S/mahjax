@@ -299,6 +299,7 @@ class Yaku:
         n_concealed_pung = n_concealed_pung + n_pung - loss
         nine_gates = nine_gates | (Yaku.nine_gates(code) == 1)
         outside_pung = pung & 0b100000001
+        n_outside_pung = (outside_pung & 1) + ((outside_pung >> 8) & 1)
         strong = (
             in_range
             & (
@@ -310,8 +311,8 @@ class Yaku:
             >> pos
             & 1
         )
-        loss = loss << ((outside_pung >> pos) & 1)
-        fu = fu + 4 * (n_pung + (outside_pung > 0)) - 2 * loss + 2 * strong
+        outside_loss = loss & ((outside_pung >> pos) & 1)
+        fu = fu + 4 * n_pung + 4 * n_outside_pung - 2 * loss - 2 * outside_loss + 2 * strong
         return (
             is_pinfu,
             has_outside,
