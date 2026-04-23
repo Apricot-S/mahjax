@@ -419,7 +419,7 @@ def _step(state: State, action: Array) -> State:
         action_i8,
     )
     action_history = action_history.at[1, state._step_count].set(recorded_action)
-    action_history = action_history.at[2, state._step_count].set(action == Action.TSUMOGIRI)
+    action_history = action_history.at[2, state._step_count].set(action == Action.TSUMOGIRI).astype(jnp.int8)
     state = state.replace(  # type:ignore
         _action_history=action_history
     )
