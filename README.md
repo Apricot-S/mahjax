@@ -40,13 +40,16 @@ Mahjax is available on PyPI. Please make sure that your Python environment has j
 pip install mahjax
 ```
 
-Mahjax is currently under active development. If you prefer to use the latest codebase with the newest features, please clone the repository and install it in editable mode:
+📣 Mahjax is currently under active development. If you prefer to use the latest codebase with the newest features, please clone the repository and install it in editable mode:
 
 ```bash
 git clone https://github.com/nissymori/mahjax.git
 cd mahjax
 pip install -e .
 ```
+
+> [!NOTE]
+> The current API is still provisional and under active development, so it may change in future releases.
 
 ### Basic Usage
 We basically follow the [Pgx](https://github.com/sotetsuk/pgx) API design.
@@ -61,7 +64,7 @@ rng = jax.random.PRNGKey(0)
 
 # Initialize environment
 env = mahjax.make(
-    "no_red_mahjong",
+    "red_mahjong",
     one_round=True,      # True: Single round, False: Hanchan (East-South game)
     observe_type="dict", # "dict" for Transformer, "2D" for CNN
     order_points=[30, 10, -10, -30] # Final score bonuses (uma)
@@ -85,12 +88,6 @@ state = step_fn(state, action, rngs)
 # Get observation
 obs = obs_fn(state)
 ```
-
-### On rules of JAPANESE RIICHI Mahjong
-There are several variants of Japanese Riichi Mahjong. The most significant distinction is the inclusion of "Red 5" tiles (aka-dora).
-
-- **Current Support**: Standard 4-player rules without red tiles.
-- **Future Plans**: We plan to incorporate popular variants, including Red 5 tiles and 3-player Mahjong (Sanma).
 
 ## User interface
 MahJax includes a web-based UI (FastAPI + JS) that allows you to play against built-in or custom agents directly in your browser.
@@ -123,6 +120,43 @@ app.state.manager.registry.load_callable_from_path(
 )
 ```
 Run `uvicorn my_ui:app --port 8000`.    
+
+## Supported Rules
+
+Currently, MahJax supports the following rules:
+
+| Rule | id | Status | Code | Speed (steps/sec) |
+|------|------|--------|------|--------|
+| No-Red Mahjong | `no_red_mahjong` | ✅ | [no_red_mahjong](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjax/no_red_mahjong) | ~1.6M |
+| Red Mahjong | `red_mahjong` | ✅ | [red_mahjong](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjax/red_mahjong) | ~9M |
+| Selective Rules | - | 🚧 | - | - |
+| 3-player Mahjong | - | 🚧 | - | - |
+
+`red_mahjong` implements standard 4-player riichi mahjong with red fives.
+Its rules are designed to follow [Tenhou](https://tenhou.net/), one of the most widely used online mahjong platforms in Japan, and we validate the implementation against downloaded Tenhou game logs.
+For the detailed rule specification, see the [official Tenhou rules](https://tenhou.net/0/mj/mjlog/en/mjlog-en-rules.html).
+
+`no_red_mahjong` implements 4-player riichi mahjong without red fives.
+This variant is intentionally simplified for speed, and excludes some rules such as abortive draws (`特殊流局`), pao, and double ron.
+If throughput is your priority, `no_red_mahjong` is the recommended option.
+
+You can configure the environment with:
+
+- `id`: the rule set, such as `red_mahjong` or `no_red_mahjong`
+- `round_mode`: `single` for a single round, `half` for tonpuusen (East-only), or `full` for hanchan (East-South)
+- `observe_type`: `dict` for transformer-style inputs or `2D` for CNN-style inputs
+- `order_points`: final placement bonuses (uma), for example `[30, 10, -10, -30]`
+
+```python
+env = mahjax.make(
+    id="red_mahjong",
+    round_mode="single",
+    observe_type="dict",
+    order_points=[30, 10, -10, -30],
+)
+```
+
+
 
 ## See also
 

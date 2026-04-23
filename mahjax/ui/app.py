@@ -31,6 +31,7 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 class CreateGameRequest(BaseModel):
+    env_id: Literal["no_red_mahjong", "red_mahjong"] = Field("no_red_mahjong")
     agent_id: Optional[str] = Field(None, description="Agent identifier")
     mode: Literal["one_round", "hanchan"] = Field("hanchan")
     seed: Optional[int] = Field(None, description="RNG seed. Random if omitted.")
@@ -48,7 +49,8 @@ class CreateGameRequest(BaseModel):
 
 
 class ActionRequest(BaseModel):
-    action: int = Field(..., ge=0, le=78)
+    # Support both no_red (0-78) and red (0-86) action spaces.
+    action: int = Field(..., ge=0, le=86)
 
 
 class AutoRequest(BaseModel):
@@ -114,6 +116,7 @@ def create_app() -> FastAPI:
             player_names = [f"{base_ai_name} {i+1}" for i in range(4)]
             player_names[human_seat] = req.human_name or "You"
             session = manager.create_session(
+                env_id=req.env_id,
                 agent_id=agent.agent_id,
                 human_seat=human_seat,
                 one_round=req.mode == "one_round",

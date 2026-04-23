@@ -187,8 +187,7 @@ class State(core.State):
 
     @property
     def env_id(self) -> core.EnvId:
-        # TODO add envid
-        return "mahjong"  # type:ignore
+        return "no_red_mahjong"
 
     @property
     def json(self):

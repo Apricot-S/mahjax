@@ -1,13 +1,4 @@
-# NOTE: This file is copied and modified from Pgx (https://github.com/sotetsuk/pgx).
-# Copyright belongs to the original authors.
-# We keep tracking the updates of original Pgx implementation.
-# We try to minimize the modification to this file. Exceptions includes:
-#   - remove observation from the state class since mahjax accept 2 types of observation: dict and 2D array.
-#   - fix available environments and make functions
-#   - remove unnesesary env implementation since mahjax only support mahjong environment.
-#   - function semantics are emptied for flexibility.
-#
-# Copyright 2023 The Pgx Authors.
+# Copyright 2025 The Mahjax Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,19 +25,6 @@ from mahjax._src.types import Array, PRNGKey
 TRUE = jnp.bool_(True)
 FALSE = jnp.bool_(False)
 
-
-# Mahjax environments are versioned like OpenAI Gym or Brax.
-# OpenAI Gym forces user to specify version (e.g., `MountainCar-v0`); while Brax does not (e.g., `ant`)
-# We follow the way of Brax. One can check the environment version by `Env.version`.
-# We do not explicitly include version in EnvId for three reasons:
-# (1) In game domain, performance measure is not the score in environment but
-#     the comparison to other agents (i.e., environment version is less important),
-# (2) we do not provide older versions (as with OpenAI Gym), and
-# (3) it is tedious to remember and write version numbers.
-#
-# Naming convention:
-# Hyphen - is used to represent that there is a different original game source, and
-# Underscore - is used for the other cases.
 EnvId = Literal[
     "no_red_mahjong",
     "red_mahjong",
@@ -106,6 +84,7 @@ class State(abc.ABC):
         *,
         color_theme: Optional[Literal["light", "dark"]] = None,
         scale: Optional[float] = None,
+        language: Literal["ja", "en"] = "ja",
         use_english: bool = False,
     ) -> str:
         """Return SVG string. Useful for visualization in notebook.
@@ -117,8 +96,22 @@ class State(abc.ABC):
         Returns:
             str: SVG string
         """
-        from mahjax._src.visualizer import Visualizer
+        if self.env_id in ("mahjong", "red_mahjong", "no_red_mahjong"):
+            if self.env_id == "red_mahjong":
+                from mahjax.red_mahjong.visualization import render_round_svg
+            else:
+                from mahjax.no_red_mahjong.visualization import render_round_svg
 
+            del color_theme, scale
+            if use_english:
+                language = "en"
+            return render_round_svg(
+                self,
+                show_all_hands=True,
+                language=language,
+            )
+
+        from mahjax._src.visualizer import Visualizer
         v = Visualizer(color_theme=color_theme, scale=scale)
         return v.get_dwg(states=self, use_english=use_english).tostring()
 
@@ -128,6 +121,8 @@ class State(abc.ABC):
         *,
         color_theme: Optional[Literal["light", "dark"]] = None,
         scale: Optional[float] = None,
+        language: Literal["ja", "en"] = "ja",
+        use_english: bool = False,
     ) -> None:
         """Save the entire state (not observation) to a file.
         The filename must end with `.svg`
@@ -141,7 +136,14 @@ class State(abc.ABC):
         """
         from mahjax._src.visualizer import save_svg
 
-        save_svg(self, filename, color_theme=color_theme, scale=scale)
+        save_svg(
+            self,
+            filename,
+            color_theme=color_theme,
+            scale=scale,
+            language=language,
+            use_english=use_english,
+        )
 
 
 class Env(abc.ABC):
@@ -271,11 +273,12 @@ def make(env_id: EnvId, **kwargs):  # noqa: C901
         ```
     """
     from mahjax.no_red_mahjong.env import NoRedMahjong
+    from mahjax.red_mahjong.env import RedMahjong
 
     if env_id == "no_red_mahjong":
         return NoRedMahjong(**kwargs)
     elif env_id == "red_mahjong":
-        raise NotImplementedError("Red mahjong is not implemented yet")
+        return RedMahjong(**kwargs)
     else:
         raise ValueError(
             f"Wrong env_id '{env_id}' is passed. Available ids are: \n{available_envs()}"
