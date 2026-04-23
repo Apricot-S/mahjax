@@ -109,27 +109,31 @@ class FeatureExtractor(nn.Module):
         hand_feature = (x_hand * hand_mask[..., None]).sum(axis=1) / token_count 
 
         # --- Encode History ---
-        # action_history: (Batch, 200, 2) 
+        # action_history: (Batch, 200, 3) 
         # [Important correction point: check if shape[1] is 200 (Time) and slice accordingly]
         # Check if shape[1] is 200 (Time) and slice accordingly
-        # This allows it to work with both (Batch, 200, 2) and (Batch, 2, 200)
+        # This allows it to work with both (Batch, 200, 3) and (Batch, 3, 200)
         
         if action_history.shape[1] == MAX_HISTORY_LENGTH:
-             # (Batch, 200, 2) -> slice by feature dimension (2)
+             # (Batch, 200, 3) -> slice by feature dimension (3)
              players = action_history[:, :, 0]
              actions = action_history[:, :, 1]
+             is_tsumogiri = action_history[:, :, 2]
         elif action_history.shape[2] == MAX_HISTORY_LENGTH:
              # (Batch, 2, 200) -> slice by feature dimension (1)
              players = action_history[:, 0, :]
              actions = action_history[:, 1, :]
+             is_tsumogiri = action_history[:, 2, :]
         else:
              # fallback (previous correction version)
              players = action_history[:, :, 0]
              actions = action_history[:, :, 1]
+             is_tsumogiri = action_history[:, :, 2]
         
         hist_player_emb = nn.Embed(NUM_PLAYERS + 1, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(players + 1)
         hist_action_emb = nn.Embed(NUM_ACTIONS + 1, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(actions + 1)
-        
+        hist_is_tsumogiri_emb = nn.Embed(2 + 1, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(is_tsumogiri + 1)
+
         # Positional Embedding
         positions = jnp.arange(MAX_HISTORY_LENGTH)[None, :] # (1, 200)
         hist_pos_emb = nn.Embed(MAX_HISTORY_LENGTH, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(positions)
@@ -137,7 +141,7 @@ class FeatureExtractor(nn.Module):
         # check if the shape is consistent
         # players: (Batch, 200), hist_player_emb: (Batch, 200, 192)
         # positions: (1, 200), hist_pos_emb: (1, 200, 192)
-        x_hist = hist_player_emb + hist_action_emb + hist_pos_emb
+        x_hist = hist_player_emb + hist_action_emb + hist_is_tsumogiri_emb + hist_pos_emb
         
         hist_mask = (actions >= 0).astype(jnp.float32) # (Batch, 200)
         
