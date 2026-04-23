@@ -36,7 +36,8 @@ def hand_counts_to_idx(counts: Array, fill: int = -1, hand_size: int = 14) -> Ar
 def _observe_dict(state: State) -> Dict:
     """
     - hand: (14,) player's hand [0-33], -1 means empty
-    - action history: (3, 200) action history [player, action, is_tsumogiri], player index is relative to the current player in [0, 3], action is in [0, 78] (-1 means no action), is_tsumogiri is a boolean flag indicating whether the action is tsumogiri
+    - last_draw: (1,) The last drawn tile [0-33], -1 means no draw
+    - action history: (3, 200) action history [player, action, is_tsumogiri], player index is relative to the current player in [0, 3], discards store the discarded tile, non-discard actions store the raw action id, and is_tsumogiri is 0/1 for discards and -1 otherwise
     - shanten count: (1,) The number of shanten (0-6)
     - furiten: (1,) Whether the player is in furiten [True/False]
     - scores: (4,) The scores of the players ordered from the current player's perspective (c_p, right, across, left)
@@ -63,7 +64,7 @@ def _observe_dict(state: State) -> Dict:
     )
     action_history = state._action_history.at[0, :].set(relative_player_history)
 
-    last_draw = state._last_draw[c_p]
+    last_draw = state._last_draw
 
     # game features
     shanten_c_p = state._shanten_c_p
@@ -77,7 +78,7 @@ def _observe_dict(state: State) -> Dict:
     dora_indicators = state._dora_indicators[:4]  # (4,)
     return {
         "hand": hand_c_p_14,
-        "last_draw": last_draw_tile,
+        "last_draw": last_draw,
         "action_history": action_history,
         "shanten_count": shanten_c_p,
         "furiten": furiten,

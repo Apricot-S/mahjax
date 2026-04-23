@@ -411,15 +411,20 @@ def _step(state: State, action: Array) -> State:
     action_history = state._action_history.at[0, state._step_count].set(
         state.current_player
     )
-    # Here, if the action is tsumogiri, the discaarded tile itself is recorded as the action.
-    # And the tsumogiri flag is recorded as the third element.
-    recorded_action = jnp.where(
-        action == Action.TSUMOGIRI,
-        state._last_draw,
-        action_i8,
+    # For discards, row 1 stores the discarded tile and row 2 stores the
+    # tsumogiri flag. Non-discard actions keep the raw action id and use -1.
+    is_tsumogiri = action_i8 == Action.TSUMOGIRI
+    is_discard = ((0 <= action_i8) & (action_i8 < Tile.NUM_TILE_TYPE)) | is_tsumogiri
+    recorded_action = jnp.where(is_tsumogiri, state._last_draw, action_i8).astype(
+        jnp.int8
+    )
+    tsumogiri_flag = jnp.where(
+        is_discard,
+        is_tsumogiri.astype(jnp.int8),
+        jnp.int8(-1),
     )
     action_history = action_history.at[1, state._step_count].set(recorded_action)
-    action_history = action_history.at[2, state._step_count].set(action == Action.TSUMOGIRI).astype(jnp.int8)
+    action_history = action_history.at[2, state._step_count].set(tsumogiri_flag)
     state = state.replace(  # type:ignore
         _action_history=action_history
     )

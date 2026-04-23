@@ -1123,15 +1123,21 @@ class TestEnv(unittest.TestCase):
         self.assertEqual(dora_array[1, 4] == 1, True)
 
     def test_action_history(self):
-        # Confirm action history stores every (player, action) pair up to step_count.
+        # Confirm action history stores (player, action(tile for tsumogiri), tsumogiri flag)
+        # up to step_count.
         state = self.state
         rng = jax.random.PRNGKey(1)
         action_history = []
+        tsumogiri_history = []
         current_player_history = []
         jitted_env_step = jax.jit(env.step)
         while not state._terminated_round:
             action = act_randomly(rng, state.legal_action_mask)
-            action_history.append(action)
+            is_tsumogiri = action == Action.TSUMOGIRI
+            is_discard = (0 <= action) and (action < Tile.NUM_TILE_TYPE) or is_tsumogiri
+            recorded_action = int(state._last_draw) if is_tsumogiri else int(action)
+            action_history.append(recorded_action)
+            tsumogiri_history.append(1 if is_tsumogiri else (0 if is_discard else -1))
             current_player_history.append(int(state.current_player))
             state = jitted_env_step(state, action)
             rng, rng_sub = jax.random.split(rng)
@@ -1146,6 +1152,11 @@ class TestEnv(unittest.TestCase):
             jnp.all(state._action_history[1, :final_step_count] == jnp.array(action_history, dtype=jnp.int8)),
             True,
             f"{state._action_history[1, :final_step_count]} != {action_history}"
+        )
+        self.assertEqual(
+            jnp.all(state._action_history[2, :final_step_count] == jnp.array(tsumogiri_history, dtype=jnp.int8)),
+            True,
+            f"{state._action_history[2, :final_step_count]} != {tsumogiri_history}"
         )
         self.assertEqual(final_step_count, (state._action_history[0] != -1).sum(), f"{final_step_count} != {(state._action_history[0] != -1).sum()}")
 
