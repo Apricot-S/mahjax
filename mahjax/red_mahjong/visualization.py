@@ -41,6 +41,7 @@ _ROUND_WIND_LABELS = {
     "ja": ("東", "南"),
     "en": ("East", "South"),
 }
+_JA_FONT_FAMILY = "'Noto Sans CJK JP', 'Noto Sans CJK', sans-serif"
 
 
 def _normalize_language(language: Language | str) -> Language:
@@ -282,9 +283,10 @@ def _player_group(
     parts: list[str] = []
     seat_wind = _PLAYER_WIND_LABELS[language][(player - int(state.round_state.dealer)) % 4]
     score = int(state.round_state.score[player]) * 100
+    seat_wind_font = f' font-family="{_JA_FONT_FAMILY}"' if language == "ja" else ""
     parts.append(
-        f'<text x="265" y="435" font-size="22" fill="#000">{seat_wind}</text>'
-        f'<text x="{_CENTER-45:.1f}" y="{_CENTER+70:.1f}" font-size="20" fill="#000">{score:,}</text>'
+        f'<text x="265" y="435" font-size="22" fill="#000"{seat_wind_font}>{seat_wind}</text>'
+        f'<text x="{_CENTER-45:.1f}" y="{_CENTER+70:.1f}" font-size="20" fill="#000">{score}</text>'
     )
     if bool(state.players.riichi[player]):
         parts.append(
@@ -395,7 +397,12 @@ def render_round_svg(
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{_BOARD:.0f}" height="{_BOARD:.0f}" viewBox="0 0 {_BOARD:.0f} {_BOARD:.0f}">',
         f'<rect x="0" y="0" width="{_BOARD:.0f}" height="{_BOARD:.0f}" fill="#ffffff" />',
         f'<rect x="{_CENTER-90:.1f}" y="{_CENTER-90:.1f}" width="180" height="180" fill="#fff" stroke="#000" stroke-width="2" rx="3" ry="3" />',
-        f'<text x="{_CENTER:.1f}" y="{_CENTER-25:.1f}" text-anchor="middle" font-size="22" fill="#000">{round_label}</text>',
+        (
+            f'<text x="{_CENTER:.1f}" y="{_CENTER-25:.1f}" text-anchor="middle" font-size="22" fill="#000"'
+            f' font-family="{_JA_FONT_FAMILY}">{round_label}</text>'
+            if language == "ja"
+            else f'<text x="{_CENTER:.1f}" y="{_CENTER-25:.1f}" text-anchor="middle" font-size="22" fill="#000">{round_label}</text>'
+        ),
     ]
     if dora:
         dora_w = _W * _DORA_SCALE
