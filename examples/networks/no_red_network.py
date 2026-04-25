@@ -40,10 +40,9 @@ class FeatureExtractor(nn.Module):
     def __call__(self, obs: Dict[str, jnp.ndarray]):
         # --- Prepare inputs ---
         hand = self._ensure_batch_dim(obs["hand"], base_ndim=1).astype(jnp.int32)
-        action_history = self._ensure_batch_dim(obs["action_history"], base_ndim=2).astype(jnp.int32)
-        
-        # Debug: check the shape (displayed at compile time)
-        # print(f"DEBUG: action_history shape = {action_history.shape}")
+        action_history = self._ensure_batch_dim(obs["action_history"], base_ndim=2).astype(
+            jnp.int32
+        )
 
         shanten = self._ensure_batch_dim(obs["shanten_count"], base_ndim=0).astype(jnp.float32)
         furiten = self._ensure_batch_dim(obs["furiten"], base_ndim=0).astype(jnp.float32)
@@ -73,27 +72,15 @@ class FeatureExtractor(nn.Module):
         hand_feature = (x_hand * hand_mask[..., None]).sum(axis=1) / token_count 
 
         # --- Encode History ---
-        # action_history: (Batch, 200, 3) 
-        # [Important correction point: check if shape[1] is 200 (Time) and slice accordingly]
-        # Check if shape[1] is 200 (Time) and slice accordingly
-        # This allows it to work with both (Batch, 200, 3) and (Batch, 3, 200)
-        
         if action_history.shape[1] == MAX_HISTORY_LENGTH:
-             # (Batch, 200, 3) -> slice by feature dimension (3)
-             players = action_history[:, :, 0]
-             actions = action_history[:, :, 1]
-             is_tsumogiri = action_history[:, :, 2]
-        elif action_history.shape[2] == MAX_HISTORY_LENGTH:
-             # (Batch, 2, 200) -> slice by feature dimension (1)
-             players = action_history[:, 0, :]
-             actions = action_history[:, 1, :]
-             is_tsumogiri = action_history[:, 2, :]
+            players = action_history[:, :, 0]
+            actions = action_history[:, :, 1]
+            is_tsumogiri = action_history[:, :, 2]
         else:
-             # fallback (previous correction version)
-             players = action_history[:, :, 0]
-             actions = action_history[:, :, 1]
-             is_tsumogiri = action_history[:, :, 2]
-        
+            players = action_history[:, 0, :]
+            actions = action_history[:, 1, :]
+            is_tsumogiri = action_history[:, 2, :]
+
         hist_player_emb = nn.Embed(NUM_PLAYERS + 1, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(players + 1)
         hist_action_emb = nn.Embed(NUM_ACTIONS + 1, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(actions + 1)
         hist_is_tsumogiri_emb = nn.Embed(2 + 1, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(is_tsumogiri + 1)
@@ -101,18 +88,14 @@ class FeatureExtractor(nn.Module):
         # Positional Embedding
         positions = jnp.arange(MAX_HISTORY_LENGTH)[None, :] # (1, 200)
         hist_pos_emb = nn.Embed(MAX_HISTORY_LENGTH, HISTORY_EMB_SIZE, embedding_init=orthogonal_init())(positions)
-        
-        # check if the shape is consistent
-        # players: (Batch, 200), hist_player_emb: (Batch, 200, 192)
-        # positions: (1, 200), hist_pos_emb: (1, 200, 192)
         x_hist = hist_player_emb + hist_action_emb + hist_is_tsumogiri_emb + hist_pos_emb
-        
+
         hist_mask = (actions >= 0).astype(jnp.float32) # (Batch, 200)
-        
+
         x_hist = x_hist * hist_mask[..., None]
         for _ in range(NUM_HISTORY_LAYER):
             x_hist = TransformerBlock(HISTORY_EMB_SIZE, num_heads=4, mlp_dim=TRANFORMER_MLP_DIM)(x_hist, mask=hist_mask)
-            
+
         hist_token_count = jnp.maximum(hist_mask.sum(axis=1, keepdims=True), 1.0)
         history_feature = (x_hist * hist_mask[..., None]).sum(axis=1) / hist_token_count
 

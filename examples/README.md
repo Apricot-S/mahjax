@@ -17,8 +17,8 @@ We collect training data using a hand-crafted rule-based agent (designed to mini
 
 In this example, we adopt a Transformer architecture that utilizes dictionary-based observations.
 - **Network Architecture:** Refer to [`networks/`](https://github.com/nissymori/mahjax/blob/main/examples/networks/) for details.
-- **Observation Semantics:** Documentation is available [here](https://github.com/nissymori/mahjax/blob/ea6aa59521d1bbdae0876638af5a200b992c8bb7/mahjax/no_red_mahjong/env.py#L1810).
-- **Note for CNN Users:** If you prefer to train CNN-based agents (common in the Mahjong AI community), please use [`observe_2D`](https://github.com/nissymori/mahjax/blob/ea6aa59521d1bbdae0876638af5a200b992c8bb7/mahjax/no_red_mahjong/env.py#L1871) instead.
+- **Observation Semantics:** See the documentation for [`no_red_mahjong`](https://nissymori.github.io/mahjax/no_red_mahjong/#dict-observation). The current examples assume the same `(3, 200)` `action_history` layout used by `red_mahjong`.
+- **Note for CNN Users:** `observe_type="2D"` is still experimental and not yet finalized.
 
 ### Behavior Cloning and RL with Regularization
 
@@ -52,5 +52,4 @@ python ppo_with_reg.py seed=0 pretrained_model_path=YYY
 
 - [Yu+2025](https://arxiv.org/abs/2510.18183): We referenced this implementation for PPO components tailored to competitive multi-player imperfect-information games, specifically regarding GAE and KL regularization.
 - [Abe+2023](https://arxiv.org/abs/2305.16610): Discusses regularization-based algorithms in imperfect-information games.
-
 

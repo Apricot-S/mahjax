@@ -10,9 +10,12 @@ nav:
   - Home: index.md
   - Overview:
       - Mahjong Basics: mahjong-basics.md
-      - SupportedRules: rule.md
+      - Supported Rules: rule.md
       - Visualization: visualization.md
       - UI Guide: ui.md
+  - Available Games:
+      - No-Red Mahjong: no_red_mahjong.md
+      - Red Mahjong: red_mahjong.md
   - API:
       - Reference: api.md
   - GitHub: https://github.com/nissymori/mahjax
