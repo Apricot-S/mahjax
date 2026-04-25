@@ -49,8 +49,9 @@ const envOptionRefs = {
   red_mahjong: document.querySelector('[data-i18n-env="red_mahjong"]'),
 };
 const modeOptionRefs = {
-  hanchan: document.querySelector('[data-i18n-mode="hanchan"]'),
-  one_round: document.querySelector('[data-i18n-mode="one_round"]'),
+  half: document.querySelector('[data-i18n-mode="half"]'),
+  east: document.querySelector('[data-i18n-mode="east"]'),
+  single: document.querySelector('[data-i18n-mode="single"]'),
 };
 const seatOptionRefs = {
   auto: document.querySelector('[data-i18n-seat="auto"]'),
@@ -97,8 +98,9 @@ const I18N = {
       start: 'Start Game',
       end: 'End Game',
       modes: {
-        hanchan: '半荘戦',
-        one_round: '一局戦',
+        half: '半荘戦',
+        east: '東風戦',
+        single: '一局戦',
       },
       seats: {
         auto: 'ランダム',
@@ -218,8 +220,9 @@ const I18N = {
       start: 'Start Game',
       end: 'End Game',
       modes: {
-        hanchan: 'Hanchan match',
-        one_round: 'Single round',
+        half: 'Hanchan match',
+        east: 'East-only match',
+        single: 'Single round',
       },
       seats: {
         auto: 'Random',

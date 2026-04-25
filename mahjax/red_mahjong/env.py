@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -254,7 +254,7 @@ def yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
 class RedMahjong(Env):
     def __init__(
         self,
-        one_round: bool = False,
+        round_mode: Literal["single", "east", "half"] = "half",
         observe_type: str = "dict",
         order_points: List[int] = [
             30,
@@ -264,7 +264,11 @@ class RedMahjong(Env):
         ],  # No oka, 10-30, SAIKOUISEN rule https://saikouisen.com/about/rules/
         game_config: Optional[GameConfig] = None,
     ):
-        self.one_round = one_round
+        if round_mode not in ("single", "east", "half"):
+            raise ValueError(f"round_mode must be one of ('single', 'east', 'half'), got: {round_mode}")
+        self.round_mode = round_mode
+        self.one_round = round_mode == "single"
+        self.round_limit = jnp.int8(4 if round_mode == "east" else 8)
         self.observe_func = _observe_dict if observe_type == "dict" else _observe_2D
         self.order_points = order_points
         self.game_config = _resolve_game_config(game_config)
@@ -281,6 +285,7 @@ class RedMahjong(Env):
         state = _replace_state(
             state,
             order_points=jnp.array(self.order_points, dtype=jnp.int32),
+            round_limit=self.round_limit,
         )
         shanten_val = Shanten.number(state.players.hand[state.current_player]).astype(jnp.int8)
         return _replace_state(state, shanten_current_player=shanten_val)

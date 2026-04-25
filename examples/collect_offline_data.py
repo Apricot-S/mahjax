@@ -104,7 +104,7 @@ def main():
         cfg.dataset_path = default_dataset_path(cfg.env_name)
     print(f"Config: {cfg}", flush=True)
 
-    env = mahjax.make(cfg.env_name, one_round=True, observe_type="dict")
+    env = mahjax.make(cfg.env_name, round_mode="single", observe_type="dict")
     step_env = auto_reset(env.step, env.init)
     rule_based_player = get_rule_based_player(cfg.env_name)
 

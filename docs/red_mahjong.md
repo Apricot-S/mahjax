@@ -20,7 +20,7 @@ from mahjax.red_mahjong.env import RedMahjong
 from mahjax.red_mahjong.state import GameConfig
 
 env = RedMahjong(
-    one_round=False,
+    round_mode="half",
     observe_type="dict",
     game_config=GameConfig(),
 )
@@ -150,9 +150,9 @@ This includes:
 
 ## Termination
 
-If `one_round=True`, the environment terminates after the first round ends.
-
-If `one_round=False`, the environment continues using its full round progression until the game-end condition is reached.
+- `round_mode="single"` terminates after the first round ends (`one_round=True` equivalent).
+- `round_mode="east"` runs East-only progression with `round_limit=4`.
+- `round_mode="half"` runs East-South progression with `round_limit=8`.
 
 ## Reference
 

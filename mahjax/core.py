@@ -266,7 +266,7 @@ def make(env_id: EnvId, **kwargs):  # noqa: C901
         ```py
         env = mahjax.make(
             "no_red_mahjong",
-            one_round=True,  # True: Single round, False: Hanchan (East-South game)
+            round_mode="single",  # "single", "east" (tonpuusen), or "half" (hanchan)
             observe_type="dict", # "dict" for Transformer, "2D" for CNN
             order_points=[30, 10, -10, -30],  # Final score bonuses (uma)
         )

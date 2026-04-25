@@ -13,7 +13,7 @@ or load the environment class directly:
 ```py
 from mahjax.no_red_mahjong.env import NoRedMahjong
 
-env = NoRedMahjong(one_round=False, observe_type="dict")
+env = NoRedMahjong(round_mode="half", observe_type="dict")
 ```
 
 ## Description
@@ -131,9 +131,9 @@ Examples:
 
 ## Termination
 
-If `one_round=True`, the environment terminates after the first round ends.
-
-If `one_round=False`, the environment continues as a full game using its current round progression logic until the game-end condition is reached.
+- `round_mode="single"` terminates after the first round ends (`one_round=True` equivalent).
+- `round_mode="east"` runs East-only progression with `round_limit=4`.
+- `round_mode="half"` runs East-South progression with `round_limit=8`.
 
 ## Reference
 

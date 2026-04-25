@@ -62,7 +62,7 @@ rng = jax.random.PRNGKey(0)
 # Initialize environment
 env = mahjax.make(
     "red_mahjong",
-    one_round=True,      # True: Single round, False: Hanchan (East-South game)
+    round_mode="single", # "single", "east" (tonpuusen), or "half" (hanchan)
     observe_type="dict", # "dict" for Transformer, "2D" for CNN
     order_points=[30, 10, -10, -30] # Final score bonuses (uma)
 )
@@ -140,7 +140,7 @@ If throughput is your priority, `no_red_mahjong` is the recommended option.
 You can configure the environment with:
 
 - `id`: the rule set, such as `red_mahjong` or `no_red_mahjong`
-- `round_mode`: `single` for a single round, `half` for tonpuusen (East-only), or `full` for hanchan (East-South)
+- `round_mode`: `single` for a single round, `east` for tonpuusen (East-only), or `half` for hanchan (East-South)
 - `observe_type`: `dict` for transformer-style inputs or `2D` for CNN-style inputs
 - `order_points`: final placement bonuses (uma), for example `[30, 10, -10, -30]`
 
