@@ -15,17 +15,16 @@
 [![License](https://img.shields.io/pypi/l/mahjax.svg)](https://pypi.org/project/mahjax)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/mahjax.svg)](https://pypi.org/project/mahjax)
 
-**A GPU-Accelerated Mahjong Simulator for Reinforcement Learning in [JAX](https://github.com/google/jax)**
+**A GPU-Accelerated Mahjong Simulator for Reinforcement Learning in JAX**
 
-Japanese Riichi Mahjong is a complex board game that presents a unique combination of **imperfect information**, **multi-player (>2) competition**, **stochastic dynamics**, and **high-dimensional inputs**.
-MahJax is highly inspired by [Pgx](https://github.com/sotetsuk/pgx), which offers vectorized simulators for a diverse set of board games.
-While Pgx includes imperfect information games (such as miniature poker and mahjong), its primary emphasis is on deterministic perfect-information games like Go, Chess, and Shogi.
-We aim to complement this by offering a full-scale Japanese Riichi Mahjong environment written entirely in JAX.
+Mahjax provides a full-scale Japanese Riichi Mahjong environment written entirely in [JAX](https://github.com/google/jax), enabling **highly parallelized simulation on GPUs**.
+Note that MahJax is heavily inspired by [Pgx](https://github.com/sotetsuk/pgx), which offers vectorized simulators for a diverse set of board games such as Go, Chess, and Shogi.
+
 
 ## Overview
 
 - **Vectorized Environment:** Fully JIT-compilable and extremely fast (approx. **1.6M steps/sec** on 8x A100 GPUs).
-- **Beautiful Visualization:** Like Pgx, we offer SVG-based game visualization. We also provide an English tile version for those unfamiliar with Chinese characters (Kanji).
+- **Beautiful Visualization:** We offer SVG-based game visualization. We also provide a visualization **for those unfamiliar with Chinese characters** (see the GIF on the top right).
 - **Playable Interface:** A web-based UI allows you to play directly against the agents you train.
 - **RL Examples:** We provide simple examples for Behavior Cloning and Reinforcement Learning in the [`examples/`](https://github.com/nissymori/mahjax/tree/main/examples) directory.
 
@@ -33,7 +32,7 @@ For more details, please refer to the [Documentation](https://nissymori.github.i
 
 ## Quick Start
 ### Install
-Mahjax is available on PyPI. Please make sure that your Python environment has jax and jaxlib installed, depending on your hardware specification.
+Mahjax is available on PyPI. Please make sure that your Python environment has `jax` and `jaxlib` installed, depending on your hardware setup.
 ```bash
 pip install mahjax
 ```
@@ -63,7 +62,7 @@ rng = jax.random.PRNGKey(0)
 # Initialize environment
 env = mahjax.make(
     "red_mahjong",
-    one_round=True,      # True: Single round, False: Hanchan (East-South game)
+    round_mode="single", # "single", "east" (tonpuusen), or "half" (hanchan)
     observe_type="dict", # "dict" for Transformer, "2D" for CNN
     order_points=[30, 10, -10, -30] # Final score bonuses (uma)
 )
@@ -97,11 +96,11 @@ Install dependencies and start the server:
 pip install mahjax
 uvicorn mahjax.ui.app:create_app --host 0.0.0.0 --port 8000
 ```
-Open http://localhost:8000 to start playing. The default agents are random and rule_based one.
+Open http://localhost:8000 to start playing. The default agents are the random and `rule_based` ones.
 
 ### Playing Against Your Agent
 You can register your trained agent to appear in the UI's agent selector.
-Create a python script (e.g., `my_app.py`) and register your agent's act function:
+Create a Python script (e.g., `my_app.py`) and register your agent's `act` function:
 
 ```py
 ### my_app.py
@@ -141,7 +140,7 @@ If throughput is your priority, `no_red_mahjong` is the recommended option.
 You can configure the environment with:
 
 - `id`: the rule set, such as `red_mahjong` or `no_red_mahjong`
-- `round_mode`: `single` for a single round, `half` for tonpuusen (East-only), or `full` for hanchan (East-South)
+- `round_mode`: `single` for a single round, `east` for tonpuusen (East-only), or `half` for hanchan (East-South)
 - `observe_type`: `dict` for transformer-style inputs or `2D` for CNN-style inputs
 - `order_points`: final placement bonuses (uma), for example `[30, 10, -10, -30]`
 
@@ -154,24 +153,27 @@ env = mahjax.make(
 )
 ```
 
+> [!NOTE]
+> The observation features are not yet finalized (though the current version suffices for RL with BC; see [examples/](https://github.com/nissymori/mahjax/tree/main/examples)).
+
 
 
 ## See also
 
-Jax based environments
-- [Pgx](https://github.com/sotetsuk/pgx): Boad game environments such as Go, chess, and Shogi.
+JAX-based environments
+- [Pgx](https://github.com/sotetsuk/pgx): Board game environments such as Go, Chess, and Shogi.
 - [Brax](https://github.com/google/brax): Robotics control.
-- [Gymnax](https://github.com/RobertTLange/gymnax): Popular small scale RL environments such as cartpole or bsuite.
-- [Jumanji](https://github.com/instadeepai/jumanji): A diverse suite of RL environments (paking, routing, etc).
-- [Craftax](https://arxiv.org/abs/2402.16801): JAX-version of (Crafter + Nethack).
+- [Gymnax](https://github.com/RobertTLange/gymnax): Popular small-scale RL environments such as CartPole or bsuite.
+- [Jumanji](https://github.com/instadeepai/jumanji): A diverse suite of RL environments (packing, routing, etc.).
+- [Craftax](https://arxiv.org/abs/2402.16801): A JAX version of Crafter + Nethack.
 - [JaxMARL](https://github.com/FLAIROx/JaxMARL): Multi-agent environments such as Hanabi.
-- [Navix](https://github.com/epignatelli/navix): JAX-version of MiniGrid.
+- [Navix](https://github.com/epignatelli/navix): A JAX version of MiniGrid.
 
 ## Cite us
-Paper comming soon.
+Paper coming soon.
 
 ## Acknowledgement
-- [sotetsuk](https://github.com/sotetsuk): For general advice on the development of mahjax based on his experience of developping pgx
+- [sotetsuk](https://github.com/sotetsuk): For general advice on the development of mahjax based on his experience developing pgx.
 - [habara-k](https://github.com/habara-k): For developing core JAX components such as shanten and Yaku calculation.
 - [OkanoShinri](https://github.com/OkanoShinri): For the initial implementation of MahJax and its SVG visualization.
-- [easonyu0203](easonyu0203): For advise on PPO implementation in multi-player imperfect information game.
+- [easonyu0203](easonyu0203): For advice on PPO implementation in a multi-player imperfect-information game.

@@ -102,7 +102,7 @@ def make_policy_fn(state: AgentTrainState, network_cls):
 
 def visualize_game(cfg, train_state):
     print("\n=== Visualizing Agent vs Rule-based ===", flush=True)
-    env = mahjax.make(cfg.env_name, one_round=True, observe_type="dict")
+    env = mahjax.make(cfg.env_name, round_mode="single", observe_type="dict")
     rule_based_player = get_rule_based_player(cfg.env_name)
     jitted_step = jax.jit(env.step)
     policy_fn = make_policy_fn(train_state, NETWORK_CLS)

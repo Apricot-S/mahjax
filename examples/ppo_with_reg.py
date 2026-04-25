@@ -43,7 +43,7 @@ class PPOWithRegArgs(BaseModel):
     algo: str = "ppo_with_reg"
     # Environment
     env_name: str = "no_red_mahjong"
-    one_round: bool = True
+    round_mode: Literal["single", "east", "half"] = "single"
     seed: int = 0
     # Training setup
     num_envs: int = 1024
@@ -79,7 +79,7 @@ if args.pretrained_model_path == "bc_params.pkl":
     args.pretrained_model_path = default_bc_params_path(args.env_name)
 print(args, file=sys.stderr)
 
-BASE_ENV = mahjax.make(args.env_name, one_round=args.one_round, observe_type="dict")
+BASE_ENV = mahjax.make(args.env_name, round_mode=args.round_mode, observe_type="dict")
 step_fn = auto_reset(BASE_ENV.step, BASE_ENV.init)
 NUM_PLAYERS, NUM_UPDATES = BASE_ENV.num_players, int(args.total_timesteps // (args.num_envs * args.num_steps))
 BATCH_SIZE = args.num_envs * args.num_steps

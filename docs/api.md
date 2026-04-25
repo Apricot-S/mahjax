@@ -21,7 +21,7 @@ rng = jax.random.PRNGKey(0)
 # Initialize environment and state
 env = mahjax.make(
     "red_mahjong",
-    one_round=True,  # one_round: if False, hanchan game.
+    round_mode="single",  # "single", "east" (tonpuusen), or "half" (hanchan)
     order_points=[30, 10, -10, -30]  # You can specify the order points by thousands.
 )
 step_fn = jax.jit(jax.vmap(env.step))

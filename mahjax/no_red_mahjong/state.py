@@ -123,8 +123,8 @@ class State(core.State):
     _last_deck_ix: Array = jnp.int8(14)  # The index of the last drawn tile
     _draw_next: Array = FALSE  # Whether the next player should draw a tile
     _last_draw: Array = jnp.int8(
-        0
-    )  # The last drawn tile for the player with 3n+2 tiles. If no last drawn tile is set, it is 0.
+        -1
+    )  # The last drawn tile for the player with 3n+2 tiles. If no last drawn tile is set, it is -1.
     _last_player: Array = jnp.int8(0)  # The last player who discarded a tile.
     # The river of the players (player, tile)
     # int8
