@@ -9,7 +9,9 @@ copyright: Copyright © MahJax Authors
 nav:
   - Home: index.md
   - Overview:
-      - Rules: rule.md
+      - Mahjong Basics: mahjong-basics.md
+      - SupportedRules: rule.md
+      - Visualization: visualization.md
       - UI Guide: ui.md
   - API:
       - Reference: api.md
