@@ -550,13 +550,22 @@ class Yaku:
         win_tile_count = hand[last_tile_type]
         four_concealed_tsumo = jnp.any((n_concealed_pung == 4) & (win_tile_count >= 3) & (is_ron == 0))
         four_concealed_single = jnp.any((n_concealed_pung == 4) & (win_tile_count == 2))
+        thirteen_orphans = jnp.all(hand[KOKUSHI_TILE] > 0) & (has_tanyao == 0)
+        # The winning tile made the pair, so the hand was waiting on all thirteen tiles.
+        thirteen_orphans_thirteen_wait = thirteen_orphans & (win_tile_count == 2)
+        # Nine gates is 1112345678999 of one suit plus one more tile of that suit. When the
+        # winning tile is that extra tile, the hand was waiting on all nine tiles and holds
+        # one more of it than the shape: four of a terminal, two of any other number.
+        nine_gates_nine_wait = jnp.any(nine_gates) & (
+            win_tile_count == jnp.where((last_tile_type % 9 == 0) | (last_tile_type % 9 == 8), 4, 2)
+        )
         yakuman_update_values = jnp.array(
             [
                 three_dragons == 3,
                 four_winds == 4,
                 jnp.all(flatten[27:31] >= 2) & (four_winds == 3),
-                jnp.any(nine_gates),
-                jnp.all(hand[KOKUSHI_TILE] > 0) & (has_tanyao == 0),
+                jnp.any(nine_gates) & ~nine_gates_nine_wait,
+                thirteen_orphans & ~thirteen_orphans_thirteen_wait,
                 (has_tanyao == 0) & (has_honor == 0),
                 jnp.all(flatten[0:27] == 0),
                 jnp.sum(flatten[ALL_GREEN_TILE]) == jnp.sum(flatten),  # a kan counts 4 tiles
@@ -568,6 +577,8 @@ class Yaku:
         yakuman = jnp.zeros(NUM_TENHOU_YAKU, dtype=jnp.bool_)
         yakuman = yakuman.at[_Internal.YAKUMAN_UPDATE_INDICES].set(yakuman_update_values)
         yakuman = yakuman.at[_Internal.CompletedFourConcealedPons].set(four_concealed_single)
+        yakuman = yakuman.at[_Internal.CompletedThirteenOrphans].set(thirteen_orphans_thirteen_wait)
+        yakuman = yakuman.at[_Internal.PureNineGates].set(nine_gates_nine_wait)
         yakuman_num = jnp.dot(yakuman.astype(jnp.int32), _Internal.YAKUMAN)
 
         def _ret_yakuman() -> Tuple[Array, Array, Array]:
@@ -677,13 +688,22 @@ class Yaku:
         win_tile_count = hand[last_tile_type]
         four_concealed_tsumo = (n_concealed_pung == 4) & (win_tile_count >= 3) & (is_ron == 0)
         four_concealed_single = (n_concealed_pung == 4) & (win_tile_count == 2)
+        thirteen_orphans = jnp.all(hand[KOKUSHI_TILE] > 0) & (has_tanyao == 0)
+        # The winning tile made the pair, so the hand was waiting on all thirteen tiles.
+        thirteen_orphans_thirteen_wait = thirteen_orphans & (win_tile_count == 2)
+        # Nine gates is 1112345678999 of one suit plus one more tile of that suit. When the
+        # winning tile is that extra tile, the hand was waiting on all nine tiles and holds
+        # one more of it than the shape: four of a terminal, two of any other number.
+        nine_gates_nine_wait = nine_gates & (
+            win_tile_count == jnp.where((last_tile_type % 9 == 0) | (last_tile_type % 9 == 8), 4, 2)
+        )
         yakuman_update_values = jnp.array(
             [
                 three_dragons == 3,
                 four_winds == 4,
                 jnp.all(flatten[27:31] >= 2) & (four_winds == 3),
-                nine_gates,
-                jnp.all(hand[KOKUSHI_TILE] > 0) & (has_tanyao == 0),
+                nine_gates & ~nine_gates_nine_wait,
+                thirteen_orphans & ~thirteen_orphans_thirteen_wait,
                 (has_tanyao == 0) & (has_honor == 0),
                 jnp.all(flatten[0:27] == 0),
                 jnp.sum(flatten[ALL_GREEN_TILE]) == 14,
@@ -695,6 +715,8 @@ class Yaku:
         yakuman = jnp.zeros(NUM_TENHOU_YAKU, dtype=jnp.bool_)
         yakuman = yakuman.at[_Internal.YAKUMAN_UPDATE_INDICES].set(yakuman_update_values)
         yakuman = yakuman.at[_Internal.CompletedFourConcealedPons].set(four_concealed_single)
+        yakuman = yakuman.at[_Internal.CompletedThirteenOrphans].set(thirteen_orphans_thirteen_wait)
+        yakuman = yakuman.at[_Internal.PureNineGates].set(nine_gates_nine_wait)
         yakuman_num = jnp.dot(yakuman.astype(jnp.int32), _Internal.YAKUMAN)
         return yakuman, yakuman_num.astype(jnp.int32), jnp.int32(0)
 
