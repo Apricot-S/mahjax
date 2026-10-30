@@ -22,7 +22,7 @@ import jax.numpy as jnp
 from mahjax._src.types import Array, PRNGKey
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
-from mahjax.common.constants import DORA_ARRAY, INITIAL_HAND_TILES, TILE_RANGE
+from mahjax.common.constants import DORA_ARRAY, INITIAL_HAND_TILES, MAX_KANS_PER_ROUND, TILE_RANGE
 from mahjax.common.hand import Hand
 from mahjax.common.meld import Meld
 from mahjax.common.tile import River, Tile
@@ -205,6 +205,25 @@ def _trigger_special_abortive_draw(state: State) -> State:
         kan_declared=FALSE,
         is_abortive_draw_normal=FALSE,
     )
+
+
+def _is_four_wind_draw(state: State) -> Array:
+    """四風連打: every player's first discard is the same wind, and the first go-around
+    was not interrupted. Checked at the dealer's second draw."""
+    first_discards = River.decode_tile(state.players.river[:, 0])
+    return (
+        jnp.all(state.players.discard_counts > 0)
+        & jnp.all(Tile.is_tile_four_wind(first_discards))
+        & jnp.all(first_discards == first_discards[0])
+        & _is_uninterrupted_first_turn(state, state.round_state.next_deck_ix)
+    )
+
+
+def _is_four_kan_draw(state: State) -> Array:
+    """四開槓: the round's kans have reached the limit, split between two or more players.
+    One player's four kans are the four-kans yakuman instead."""
+    n_kan = state.players.n_kan
+    return (n_kan.sum() >= MAX_KANS_PER_ROUND) & ((n_kan > 0).sum() >= 2)
 
 
 @jax.jit
@@ -534,18 +553,9 @@ def _draw(state: State, game_config: Optional[GameConfig] = None) -> State:
     config = _resolve_game_config(game_config)
     c_p = state.current_player
     next_deck_ix = state.round_state.next_deck_ix - 1
-    first_discards = River.decode_tile(state.players.river[:, 0])
-    all_first_discards_exist = jnp.all(state.players.discard_counts > 0)
-    is_four_wind = (
-        all_first_discards_exist
-        & jnp.all(Tile.is_tile_four_wind(first_discards))
-        & jnp.all(first_discards == first_discards[0])
-    )
-    # Checked at the dealer's second draw: the go-around before it must be the first.
-    is_four_wind_draw = is_four_wind & _is_uninterrupted_first_turn(state, state.round_state.next_deck_ix)
-    is_four_riichi_draw = state.players.riichi.sum() == 4
+    is_four_riichi_draw = state.players.riichi.all()  # 四家立直: every player is in riichi
     is_special_abortive_draw = config.enable_special_abortive_draw & (
-        is_four_wind_draw | is_four_riichi_draw
+        _is_four_wind_draw(state) | is_four_riichi_draw
     )
     special_state = _trigger_special_abortive_draw(state)
     is_haitei = state.round_state.next_deck_ix == _live_wall_end_ix(state)
@@ -752,12 +762,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     # 三家和 (triple ron) is decided in ``_ron`` itself when the third player
     # actually declares RON. Counting RON candidates pre-emptively here would
     # mis-fire when one of the three candidates ends up passing.
-    is_four_kan_draw = (
-        config.enable_special_abortive_draw
-        & had_after_kan
-        & (state.players.n_kan.sum() >= 4)
-        & ((state.players.n_kan > 0).sum() >= 2)
-    )
+    is_four_kan_draw = config.enable_special_abortive_draw & had_after_kan & _is_four_kan_draw(state)
     # After the fourth kan only a ron can take the discard; unclaimed, the round is drawn.
     legal_action_mask_4p = jnp.where(
         is_four_kan_draw,
@@ -1517,12 +1522,7 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
     )
     # Nobody took the discard after the fourth kan: the four-kan abortive draw. Four kans by
     # two or more players can only mean that discard, since it ends the round either way.
-    is_four_kan_draw = (
-        config.enable_special_abortive_draw
-        & ~can_robbing_kan
-        & (state.players.n_kan.sum() >= 4)
-        & ((state.players.n_kan > 0).sum() >= 2)
-    )
+    is_four_kan_draw = config.enable_special_abortive_draw & ~can_robbing_kan & _is_four_kan_draw(state)
     return jax.lax.cond(
         is_four_kan_draw & ~is_post_ron & no_meld_player,
         # A riichi declared on that discard stands, and its stick stays on the table.
