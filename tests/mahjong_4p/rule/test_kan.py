@@ -17,7 +17,7 @@ from mahjax.mahjong_4p.logic import (
     _step,
     _turn_over_kan_dora,
 )
-from mahjax.mahjong_4p.state import default_state
+from mahjax.mahjong_4p.state import State, default_state
 
 from ..helpers import STEP_KEY, _post_ankan_state, compiled_env
 
@@ -61,7 +61,7 @@ def test_open_and_added_kan_dora_turns_over_at_the_discard():
     def revealed(state):
         return int((state.round_state.dora_indicators >= 0).sum())
 
-    base = _init(jax.random.PRNGKey(2))
+    base = _init(State, jax.random.PRNGKey(2))
     others = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     # Open kan: P0 discarded North and P1 holds NNN.
     open_kan = _replace_state(
@@ -135,7 +135,7 @@ def test_a_robbed_added_kan_is_scored_before_the_previous_kans_indicator_turns_o
         counts(others),
         counts(others),
     ])
-    base = _init(jax.random.PRNGKey(2))
+    base = _init(State, jax.random.PRNGKey(2))
     melds = base.players.melds.at[1, 0].set(Meld.init(Action.PON, west, 2))
     melds = melds.at[1, 1].set(Meld.init(Action.PON, seven_p, 2))
 
@@ -201,7 +201,7 @@ def test_no_kan_off_a_rinshan_draw_that_leaves_the_live_wall_empty() -> None:
 
     for riichi in (False, True):
         for live_draws_left, south_kan_offered in ((1, False), (2, True)):
-            state = m._init(jax.random.PRNGKey(5))
+            state = m._init(State, jax.random.PRNGKey(5))
             state = m._replace_state(
                 state,
                 current_player=jnp.int8(0),
@@ -496,7 +496,7 @@ def test_red_robbing_kan_on_a_red_five_keeps_the_red_dora() -> None:
 
 
 def test_kan_dora_off_keeps_the_indicator_face_down() -> None:
-    state = _init(jax.random.PRNGKey(0))
+    state = _init(State, jax.random.PRNGKey(0))
     on = _turn_over_kan_dora(state)
     off = _turn_over_kan_dora(state, GameConfig(enable_kan_dora=False))
     assert int(on.round_state.dora_indicators[1]) == int(state.round_state.deck[7])
@@ -510,12 +510,12 @@ def test_kan_dora_off_keeps_the_indicator_face_down() -> None:
 def test_ura_dora_off_deals_and_turns_over_no_ura() -> None:
     config = GameConfig(enable_ura_dora=False)
     key = jax.random.PRNGKey(0)
-    deck, dora, ura, _, _ = _prepare_next_round_assets(key, config)
-    deck_on, dora_on, ura_on, _, _ = _prepare_next_round_assets(key)
+    deck, dora, ura, _, _ = _prepare_next_round_assets(default_state(), key, config)
+    deck_on, dora_on, ura_on, _, _ = _prepare_next_round_assets(default_state(), key)
     assert bool(jnp.all(deck == deck_on)) and bool(jnp.all(dora == dora_on))
     assert int(ura_on[0]) == int(deck[8])
     assert bool(jnp.all(ura == -1))
-    state = _init(key, config)
+    state = _init(State, key, config)
     kanned = _turn_over_kan_dora(state, config)
     assert int(kanned.round_state.dora_indicators[1]) == int(state.round_state.deck[7])
     assert bool(jnp.all(kanned.round_state.ura_dora_indicators == -1))

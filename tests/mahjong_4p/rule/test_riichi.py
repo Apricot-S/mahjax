@@ -15,7 +15,7 @@ from mahjax.mahjong_4p.logic import (
     _mask_after_draw_in_riichi,
     _replace_state,
 )
-from mahjax.mahjong_4p.state import default_state
+from mahjax.mahjong_4p.state import State, default_state
 
 from ..helpers import _post_ankan_state
 
@@ -25,7 +25,7 @@ def _riichi_ready_state(**round_overrides):
     declare riichi (123456789m 123p 55p), with round-state fields overridable
     per test. The hand is what makes ``Hand.can_riichi`` true; every test
     below then toggles exactly one precondition around it."""
-    state = _init(jax.random.PRNGKey(5))
+    state = _init(State, jax.random.PRNGKey(5))
     c_p = int(state.current_player)
     counts37 = jnp.zeros(37, dtype=state.players.hand_with_red.dtype)
     for t in list(range(9)) + [9, 10, 11]:          # 1-9m, 123p
@@ -171,7 +171,7 @@ def test_riichi_closed_kan_is_not_offered_once_four_kans_are_on_the_table() -> N
 
 
 def test_riichi_without_ippatsu_still_stands_but_sets_no_ippatsu() -> None:
-    state = _init(jax.random.PRNGKey(0))
+    state = _init(State, jax.random.PRNGKey(0))
     declared = _replace_state(
         state, last_player=jnp.int8(2), riichi_declared=state.players.riichi_declared.at[2].set(True)
     )

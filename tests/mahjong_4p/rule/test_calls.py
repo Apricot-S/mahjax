@@ -26,14 +26,14 @@ def test_mask_for_chi_forbids_forced_kuikae() -> None:
     hand = hand.at[0].set(2).at[1].set(1).at[2].set(1).at[3].set(3)  # 1123444m
     chi_slice = slice(Action.CHI_L, Action.CHI_R_RED + 1)
     # Chi 1m: only CHI_L (1m+23m) is possible; every remaining discard is kuikae.
-    mask_1m = _mask_for_chi(hand, jnp.int8(0))
+    mask_1m = _mask_for_chi(default_state(), hand, jnp.int8(0))
     assert not bool(jnp.any(mask_1m[chi_slice]))
     # Chi 4m: only CHI_R (234m) is possible; every remaining discard is kuikae.
-    mask_4m = _mask_for_chi(hand, jnp.int8(3))
+    mask_4m = _mask_for_chi(default_state(), hand, jnp.int8(3))
     assert not bool(jnp.any(mask_4m[chi_slice]))
     # Sanity: with a spare 9m in hand, chi 1m leaves a legal discard and is allowed.
     hand_ok = hand.at[3].set(2).at[8].set(1)  # 1123449m
-    mask_ok = _mask_for_chi(hand_ok, jnp.int8(0))
+    mask_ok = _mask_for_chi(default_state(), hand_ok, jnp.int8(0))
     assert bool(mask_ok[Action.CHI_L])
 
 

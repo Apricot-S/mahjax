@@ -60,7 +60,7 @@ def test_pao_and_nagashi_mangan_scoring() -> None:
         ),
     )
     nagashi_after = _abortive_draw_normal(nagashi_state)
-    expected_nagashi = _mangan_tsumo(jnp.int8(0), jnp.int8(0), jnp.int8(0))
+    expected_nagashi = _mangan_tsumo(default_state(), jnp.int8(0), jnp.int8(0), jnp.int8(0))
 
     assert jnp.array_equal(nagashi_after.rewards, expected_nagashi.astype(jnp.float32))
 
@@ -210,7 +210,7 @@ def test_red_thirteen_riichi_sticks_do_not_wrap_negative() -> None:
 
     assert float(m._ron(state).rewards[1]) == 10 + 130  # 1 han 30 fu ron + the sticks
     assert float(m._tsumo(state).rewards[1]) == 11 + 130  # 300/500 tsumo + the sticks
-    assert int(m._final_score(state.round_state)[0]) == 250 + 130
+    assert int(m._final_score(state)[0]) == 250 + 130
 
 
 def test_red_limit_hand_rons_pay_the_limit() -> None:

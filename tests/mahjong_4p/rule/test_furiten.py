@@ -13,7 +13,7 @@ from ..helpers import STEP_KEY, compiled_env
 
 def _furiten_by_pass_after_declining_then_an_unrelated_pass(m, Action):
     """X declines a winning discard, then passes on an unrelated PON before drawing."""
-    base = m.default_state()
+    base = default_state()
     x = 1
     mask = base.players.legal_action_mask
     declined = m._pass(

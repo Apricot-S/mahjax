@@ -22,13 +22,12 @@ from mahjax._src.types import Array, PRNGKey
 from mahjax.common.config import GameConfig
 from mahjax.core import Env
 
-from .config import NO_RED
+from .config import NO_RED, RED
 from .constants import NUM_PLAYERS, TRUE
 from .logic import (
     _start_next_round_or_end_game,
     _init,
     _replace_state,
-    _resolve_game_config,
     _step,
 )
 from .observation import _observe_2D, _observe_dict, _observe_privileged_2D, _observe_privileged_dict
@@ -64,7 +63,7 @@ class Mahjong4p(Env):
         self.observe_func = _observe_dict if observe_type == "dict" else _observe_2D
         self.observe_privileged_func = _observe_privileged_dict if observe_type == "dict" else _observe_privileged_2D
         self.order_points = order_points
-        self.game_config = _resolve_game_config(game_config)
+        self.game_config = RED if game_config is None else game_config
         self.round_end = round_end
 
     def init(self, key: PRNGKey) -> State:
@@ -75,7 +74,7 @@ class Mahjong4p(Env):
         Returns:
             State: initial state of environment
         """
-        state = _init(key, self.game_config)
+        state = _init(State, key, self.game_config)
         state = _replace_state(
             state,
             order_points=jnp.array(self.order_points, dtype=jnp.int32),

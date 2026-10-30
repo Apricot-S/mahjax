@@ -5,7 +5,7 @@ from typing import Final
 import jax.numpy as jnp
 
 from mahjax.common.action import Action
-from mahjax.common.constants import INITIAL_HAND_TILES
+from mahjax.common.constants import FALSE, INITIAL_HAND_TILES, TRUE  # noqa: F401  (re-exported)
 
 NUM_PLAYERS: Final[int] = 4
 NUM_PHYSICAL_TILES: Final[int] = 136
@@ -26,6 +26,8 @@ NO_WINNER_NORMAL: Final[int] = 1
 TARGET_SCORE: Final[int] = TARGET_POINTS // 100
 RIICHI_BET_SCORE: Final[int] = RIICHI_BET // 100
 HONBA_SCORE: Final[int] = HONBA_BONUS // 100
+# A ron's discarder pays all of a honba; a tsumo's payers share it.
+HONBA_PER_PAYER: Final[int] = HONBA_SCORE // (NUM_PLAYERS - 1)
 # The noten players of an exhaustive draw pay 3000 points between them, in score units.
 NOTEN_PENALTY_SCORE: Final[int] = 30
 # Riichi needs at least this many live-wall draws left after the declarer's.
@@ -34,9 +36,6 @@ MIN_LIVE_DRAWS_FOR_RIICHI: Final[int] = 4
 SUDDEN_DEATH_ROUNDS: Final[int] = NUM_PLAYERS
 
 LEGAL_ACTION_SIZE: Final[int] = Action.NUM_ACTION
-
-FALSE = jnp.bool_(False)
-TRUE = jnp.bool_(True)
 
 ZERO_MASK_1D = jnp.zeros(Action.NUM_ACTION, dtype=jnp.bool_)
 ZERO_MASK_2D = jnp.zeros((NUM_PLAYERS, Action.NUM_ACTION), dtype=jnp.bool_)

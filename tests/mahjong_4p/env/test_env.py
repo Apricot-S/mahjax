@@ -9,13 +9,13 @@ from mahjax.mahjong_4p.config import RED
 from mahjax.mahjong_4p.constants import FIRST_DRAW_IDX
 from mahjax.mahjong_4p.env import Mahjong4p
 from mahjax.mahjong_4p.logic import _draw, _init, _mask_after_draw, _step
-from mahjax.mahjong_4p.state import default_state
+from mahjax.mahjong_4p.state import State, default_state
 
 from ..helpers import STEP_KEY
 
 
 def test_init_shape_and_first_draw_position() -> None:
-    state = _init(jax.random.PRNGKey(1))
+    state = _init(State, jax.random.PRNGKey(1))
     assert bool(jnp.all(state.rewards == 0))
     assert not bool(state.terminated)
     assert not bool(state.truncated)
@@ -25,7 +25,7 @@ def test_init_shape_and_first_draw_position() -> None:
 
 
 def test_draw_decrements_deck_and_sets_last_draw() -> None:
-    state = _init(jax.random.PRNGKey(2))
+    state = _init(State, jax.random.PRNGKey(2))
     before_ix = int(state.round_state.next_deck_ix)
     state = _draw(state)
     assert int(state.round_state.next_deck_ix) == before_ix - 1
@@ -33,7 +33,7 @@ def test_draw_decrements_deck_and_sets_last_draw() -> None:
 
 
 def test_mask_after_draw_has_discard_or_tsumogiri() -> None:
-    state = _init(jax.random.PRNGKey(3))
+    state = _init(State, jax.random.PRNGKey(3))
     c_p = int(state.current_player)
     hand = state.players.hand_with_red
     new_tile = int(state.round_state.last_draw)
@@ -42,7 +42,7 @@ def test_mask_after_draw_has_discard_or_tsumogiri() -> None:
 
 
 def test_tsumogiri_action_history_records_actual_tile_and_flag() -> None:
-    state = _init(jax.random.PRNGKey(4))
+    state = _init(State, jax.random.PRNGKey(4))
     last_draw = int(state.round_state.last_draw)
     next_state = _step(state, jnp.int8(Action.TSUMOGIRI), STEP_KEY)
 

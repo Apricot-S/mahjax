@@ -20,6 +20,9 @@ SENTINEL_TILE_ID: Final[int] = -1
 SENTINEL_MELD_VALUE: Final[int] = -1
 SENTINEL_DISCARD_VALUE: Final[int] = -1
 
+FALSE = jnp.bool_(False)
+TRUE = jnp.bool_(True)
+
 TILE_RANGE = jnp.arange(NUM_TILE_TYPES, dtype=jnp.int32)
 
 DORA_ARRAY = jnp.array(
