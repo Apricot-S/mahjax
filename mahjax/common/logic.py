@@ -15,7 +15,7 @@
 
 import dataclasses
 import functools
-from typing import Literal, Optional, Tuple
+from typing import Any, Literal, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -29,7 +29,9 @@ from mahjax.common.meld import Meld
 from mahjax.common.tile import River, Tile
 from mahjax.common.yaku import Yaku
 
-from .state import State
+# Any game's state, e.g. ``mahjax.mahjong_4p.state.EnvState``: its class attribute
+# ``constants`` sets the table the rules are played at.
+State = Any
 
 v_can_win = jax.vmap(
     jax.vmap(Hand.can_ron, in_axes=(None, 0)), in_axes=(0, None)

@@ -6,9 +6,9 @@ import jax
 import jax.numpy as jnp
 
 from mahjax.common.hand import Hand
+from mahjax.common.logic import _init, _replace_state
 from mahjax.mahjong_4p.config import RED
 from mahjax.mahjong_4p.env import Mahjong4p
-from mahjax.mahjong_4p.logic import _init, _replace_state
 from mahjax.mahjong_4p.state import State
 
 

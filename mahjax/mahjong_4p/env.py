@@ -20,16 +20,11 @@ import jax.numpy as jnp
 
 from mahjax._src.types import Array, PRNGKey
 from mahjax.common.config import GameConfig
+from mahjax.common.logic import _init, _replace_state, _start_next_round_or_end_game, _step
 from mahjax.core import Env
 
 from .config import NO_RED, RED
 from .constants import NUM_PLAYERS, TRUE
-from .logic import (
-    _start_next_round_or_end_game,
-    _init,
-    _replace_state,
-    _step,
-)
 from .observation import _observe_2D, _observe_dict, _observe_privileged_2D, _observe_privileged_dict
 from .state import State, default_state
 

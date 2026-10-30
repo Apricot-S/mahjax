@@ -6,8 +6,7 @@ import jax.numpy as jnp
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
 from mahjax.common.hand import Hand
-from mahjax.common.tile import Tile
-from mahjax.mahjong_4p.logic import (
+from mahjax.common.logic import (
     _accept_riichi,
     _draw_rinshan,
     _init,
@@ -15,6 +14,7 @@ from mahjax.mahjong_4p.logic import (
     _mask_after_draw_in_riichi,
     _replace_state,
 )
+from mahjax.common.tile import Tile
 from mahjax.mahjong_4p.state import State, default_state
 
 from ..helpers import _post_ankan_state
