@@ -27,10 +27,10 @@ from mahjax.common.action import Action as RedAction
 from mahjax.common.constants import DORA_ARRAY
 from mahjax.common.tile import Tile as RedTile
 from mahjax.common.yaku import Yaku as RedYaku
+from mahjax.common.yaku import _dora_array_from_state as _red_dora_array
 from mahjax.mahjong_4p.config import NO_RED
 from mahjax.mahjong_4p.constants import FIRST_DRAW_IDX
 from mahjax.mahjong_4p.env import Mahjong4p
-from mahjax.mahjong_4p.logic import _dora_array as _red_dora_array
 from mahjax.mahjong_4p.visualization import render_round_svg
 
 from .agents import Agent, AgentRegistry, ensure_valid_action
