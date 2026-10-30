@@ -364,8 +364,12 @@ def _calc_wind(east_player: Array) -> Array:
     return ((players - east_player) % 4).astype(jnp.int8)
 
 
-def _is_first_turn(next_deck_ix: Array) -> Array:
-    return next_deck_ix >= FIRST_DRAW_IDX - 4
+def _is_uninterrupted_first_turn(state: State, next_deck_ix: Array) -> Array:
+    """Nobody has drawn twice and nobody has called or made a kan: the first go-around
+    (第一巡) that nine terminals, double riichi and the blessings of heaven and earth need.
+    ``next_deck_ix`` is the live-wall index right after the latest draw."""
+    live_draws_made = FIRST_DRAW_IDX - next_deck_ix
+    return (live_draws_made <= NUM_PLAYERS) & (state.players.meld_counts.sum() == 0)
 
 
 def _append_action_history(state: State, action: Array) -> State:
@@ -537,10 +541,8 @@ def _draw(state: State, game_config: Optional[GameConfig] = None) -> State:
         & jnp.all(Tile.is_tile_four_wind(first_discards))
         & jnp.all(first_discards == first_discards[0])
     )
-    is_pure_first_turn = (next_deck_ix >= FIRST_DRAW_IDX - 5) & (
-        state.players.meld_counts.sum() == 0
-    )
-    is_four_wind_draw = is_four_wind & is_pure_first_turn
+    # Checked at the dealer's second draw: the go-around before it must be the first.
+    is_four_wind_draw = is_four_wind & _is_uninterrupted_first_turn(state, state.round_state.next_deck_ix)
     is_four_riichi_draw = state.players.riichi.sum() == 4
     is_special_abortive_draw = config.enable_special_abortive_draw & (
         is_four_wind_draw | is_four_riichi_draw
@@ -655,8 +657,7 @@ def _mask_after_draw(
     can_kyuushu = (
         config.enable_special_abortive_draw
         & Hand.can_kyuushu(hand[c_p])
-        & _is_first_turn(state.round_state.next_deck_ix - 1)
-        & (state.players.meld_counts.sum() == 0)
+        & _is_uninterrupted_first_turn(state, state.round_state.next_deck_ix - 1)
     )
     mask = mask.at[Action.KYUUSHU].set(can_kyuushu)
     return mask
@@ -1003,9 +1004,7 @@ def _accept_riichi(state: State) -> State:
     riichi = state.players.riichi.at[l_p].set(has_l_p_riichi_declared)
     is_ippatsu = jnp.where(has_l_p_riichi_declared, TRUE, state.players.ippatsu[l_p])
 
-    is_double_riichi = _is_first_turn(state.round_state.next_deck_ix) & (
-        state.players.meld_counts.sum() == 0
-    )  # If the player has no meld, the player has Double Riichi
+    is_double_riichi = _is_uninterrupted_first_turn(state, state.round_state.next_deck_ix)
     is_double_riichi = jnp.where(
         has_l_p_riichi_declared, is_double_riichi, state.players.double_riichi[l_p]
     )
@@ -1712,9 +1711,7 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
     is_double_riichi = state.players.double_riichi[c_p]  # Double Riichi (ダブル立直)
     is_haitei = state.round_state.is_haitei & ~can_after_kan  # 海底摸月 (last live-wall tsumo)
     # Check for Blessing of the Heaven/Earth (天和/地和)
-    is_pure_first_turn = _is_first_turn(state.round_state.next_deck_ix) & (
-        state.players.meld_counts.sum() == 0
-    )
+    is_pure_first_turn = _is_uninterrupted_first_turn(state, state.round_state.next_deck_ix)
     is_hand_yakuman = state.players.fu[c_p, CURRENT_TILE] == 0
     is_yakuman = is_hand_yakuman | is_pure_first_turn
     fan = state.players.fan[c_p, CURRENT_TILE]
