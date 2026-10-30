@@ -9,6 +9,7 @@ from mahjax.common.hand import Hand
 from mahjax.mahjong_4p.config import RED
 from mahjax.mahjong_4p.env import Mahjong4p
 from mahjax.mahjong_4p.logic import _init, _replace_state
+from mahjax.mahjong_4p.state import State
 
 
 STEP_KEY = jax.random.PRNGKey(0)  # wall key for round transitions
@@ -61,7 +62,7 @@ def _post_ankan_state(wall_left_after_rinshan, *, kan_dora_pre_flipped=False):
     the kan dora and already advanced ``last_deck_ix``, so ``_draw_rinshan``
     must not advance it a second time.
     """
-    state = _init(jax.random.PRNGKey(5))
+    state = _init(State, jax.random.PRNGKey(5))
     c_p = int(state.current_player)
     counts37 = jnp.zeros(37, dtype=state.players.hand_with_red.dtype)
     for t in _POST_ANKAN_HAND:

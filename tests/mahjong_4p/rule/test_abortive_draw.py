@@ -18,7 +18,7 @@ from mahjax.mahjong_4p.logic import (
     _special_next_round,
     _step,
 )
-from mahjax.mahjong_4p.state import default_state
+from mahjax.mahjong_4p.state import State, default_state
 
 from ..helpers import STEP_KEY, compiled_env
 
@@ -229,7 +229,7 @@ def test_red_four_kan_abortive_draw_after_a_passed_ron_keeps_the_riichi_stick() 
         )
         hands34 = jax.vmap(Hand.to_34)(hands)
         return _replace_state(
-            _init(jax.random.PRNGKey(3)),
+            _init(State, jax.random.PRNGKey(3)),
             current_player=jnp.int8(0),
             dealer=jnp.int8(0),
             last_player=jnp.int8(3),

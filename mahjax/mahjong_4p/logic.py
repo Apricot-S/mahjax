@@ -14,6 +14,7 @@
 
 
 import dataclasses
+import functools
 from typing import Literal, Optional, Tuple
 
 import jax
@@ -22,32 +23,13 @@ import jax.numpy as jnp
 from mahjax._src.types import Array, PRNGKey
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
-from mahjax.common.constants import INITIAL_HAND_TILES, MAX_KANS_PER_ROUND, SENTINEL_TILE_ID, TILE_RANGE
+from mahjax.common.constants import FALSE, INITIAL_HAND_TILES, MAX_KANS_PER_ROUND, SENTINEL_TILE_ID, TILE_RANGE, TRUE
 from mahjax.common.hand import Hand
 from mahjax.common.meld import Meld
 from mahjax.common.tile import River, Tile
 from mahjax.common.yaku import Yaku
 
-from .config import RED
-from .constants import (
-    FALSE,
-    FIRST_DORA_INDICATOR_IX,
-    FIRST_DRAW_IDX,
-    HONBA_SCORE,
-    MAX_DORA_INDICATORS,
-    MIN_LIVE_DRAWS_FOR_RIICHI,
-    NOTEN_PENALTY_SCORE,
-    NUM_PHYSICAL_TILES,
-    NUM_PLAYERS,
-    RIICHI_BET_SCORE,
-    RINSHAN_IX,
-    SUDDEN_DEATH_ROUNDS,
-    TARGET_SCORE,
-    TRUE,
-    ZERO_MASK_1D,
-    ZERO_MASK_2D,
-)
-from .state import PlayerStateArrays, RoundState, State, default_state
+from .state import State
 
 v_can_win = jax.vmap(
     jax.vmap(Hand.can_ron, in_axes=(None, 0)), in_axes=(0, None)
@@ -77,11 +59,10 @@ ACTION_KIND = ACTION_KIND.at[Action.DUMMY].set(9)
 CURRENT_TILE = 0
 NEXT_DRAW = 1
 
-# A honba is ``HONBA_SCORE`` from the discarder on a ron, shared by the payers on a tsumo.
-_HONBA_PER_PAYER = HONBA_SCORE // (NUM_PLAYERS - 1)
 
-_PLAYER_FIELDS = frozenset(field.name for field in dataclasses.fields(PlayerStateArrays))
-_ROUND_FIELDS = frozenset(field.name for field in dataclasses.fields(RoundState))
+@functools.lru_cache(maxsize=None)
+def _field_names(cls: type) -> frozenset:
+    return frozenset(field.name for field in dataclasses.fields(cls))
 
 
 def _replace_state(state: State, **updates) -> State:
@@ -92,13 +73,15 @@ def _replace_state(state: State, **updates) -> State:
     player's row; ``_advance_to_next_decision`` then narrows it to the claims open
     to them.
     """
+    player_fields = _field_names(type(state.players))
+    round_fields = _field_names(type(state.round_state))
     env_updates = {}
     player_updates = {}
     round_updates = {}
     for key, value in updates.items():
-        if key in _PLAYER_FIELDS:
+        if key in player_fields:
             player_updates[key] = value
-        elif key in _ROUND_FIELDS:
+        elif key in round_fields:
             round_updates[key] = value
         else:
             env_updates[key] = value
@@ -116,12 +99,12 @@ def _replace_state(state: State, **updates) -> State:
     return state.replace(**env_updates)
 
 
-def _make_state(**updates) -> State:
-    return _replace_state(default_state(), **updates)
+def _make_state(state_cls: type, **updates) -> State:
+    return _replace_state(state_cls(), **updates)
 
 
 def _resolve_game_config(game_config: Optional[GameConfig]) -> GameConfig:
-    return RED if game_config is None else game_config
+    return GameConfig() if game_config is None else game_config
 
 
 def _apply_red_five_config(deck: Array, game_config: Optional[GameConfig] = None) -> Array:
@@ -140,25 +123,25 @@ def _live_wall_is_empty(state: State) -> Array:
     return state.round_state.next_deck_ix < _live_wall_end_ix(state)
 
 
-def _rinshan_ix(n_kan: Array) -> Array:
+def _rinshan_ix(state: State, n_kan: Array) -> Array:
     """Wall index of the replacement tile drawn after the ``n_kan``-th kan (0-based)."""
-    return jnp.int32(RINSHAN_IX + n_kan)
+    return jnp.int32(state.constants.RINSHAN_IX + n_kan)
 
 
-def _dora_indicator_ix(k: Array) -> Array:
+def _dora_indicator_ix(state: State, k: Array) -> Array:
     """Wall index of the ``k``-th dora indicator: 0 is the first, each kan adds one."""
-    return FIRST_DORA_INDICATOR_IX - 2 * k
+    return state.constants.FIRST_DORA_INDICATOR_IX - 2 * k
 
 
-def _ura_dora_indicator_ix(k: Array) -> Array:
+def _ura_dora_indicator_ix(state: State, k: Array) -> Array:
     """Wall index of the ``k``-th ura dora indicator, the tile below the dora indicator."""
-    return _dora_indicator_ix(k) - 1
+    return _dora_indicator_ix(state, k) - 1
 
 
-def _deal_hands(deck: Array) -> Array:
+def _deal_hands(deck: Array, num_players: int) -> Array:
     """Every player's starting hand, dealt from the end of the wall."""
-    hand = jnp.zeros((NUM_PLAYERS, Tile.NUM_TILE_TYPE_WITH_RED), dtype=jnp.int8)
-    hand_ids = deck[-(INITIAL_HAND_TILES * NUM_PLAYERS) :].reshape(NUM_PLAYERS, INITIAL_HAND_TILES)
+    hand = jnp.zeros((num_players, Tile.NUM_TILE_TYPE_WITH_RED), dtype=jnp.int8)
+    hand_ids = deck[-(INITIAL_HAND_TILES * num_players) :].reshape(num_players, INITIAL_HAND_TILES)
 
     def add_tiles(h, tiles):
         return h.at[tiles].add(1)
@@ -201,14 +184,14 @@ CHI_ACTIONS = jnp.array(
 )
 
 
-def _special_abortive_draw_mask() -> Array:
-    return ZERO_MASK_2D.at[:, Action.KYUUSHU].set(TRUE)
+def _special_abortive_draw_mask(state: State) -> Array:
+    return state.constants.ZERO_MASK_2D.at[:, Action.KYUUSHU].set(TRUE)
 
 
 def _trigger_special_abortive_draw(state: State) -> State:
     return _replace_state(
         state,
-        legal_action_mask=_special_abortive_draw_mask(),
+        legal_action_mask=_special_abortive_draw_mask(state),
         draw_next=FALSE,
         kan_declared=FALSE,
         is_abortive_draw_normal=FALSE,
@@ -262,8 +245,9 @@ def _yaku_lookahead(
             ura_dora_indicators=ron_ura_dora_indicators,
         )
     tsumo_state = _replace_state(state, last_draw=jnp.int8(next_tile))
+    num_players = state.constants.NUM_PLAYERS
     # One batched judge over every (player, column) pair.
-    idx = jnp.arange(NUM_PLAYERS * 2)
+    idx = jnp.arange(num_players * 2)
     player_idx = idx // 2
     is_ron_b = idx % 2 == CURRENT_TILE
 
@@ -274,11 +258,11 @@ def _yaku_lookahead(
         return Yaku.judge(hand, is_ron, player, rs, use_red_fives=use_red_fives)
 
     yaku, fan, fu = jax.vmap(f)(hand_b, player_idx, is_ron_b)
-    has_yaku = yaku.reshape(NUM_PLAYERS, 2, -1).any(axis=-1)
+    has_yaku = yaku.reshape(num_players, 2, -1).any(axis=-1)
     return (
         has_yaku,
-        fan.reshape(NUM_PLAYERS, 2).astype(jnp.int32),
-        fu.reshape(NUM_PLAYERS, 2).astype(jnp.int32),
+        fan.reshape(num_players, 2).astype(jnp.int32),
+        fu.reshape(num_players, 2).astype(jnp.int32),
     )
 
 
@@ -293,21 +277,23 @@ def _promote_next_draw_yaku(state: State, player: Array) -> State:
     )
 
 
-def _init(rng: PRNGKey, game_config: Optional[GameConfig] = None) -> State:
+def _init(state_cls: type, rng: PRNGKey, game_config: Optional[GameConfig] = None) -> State:
     """
-    Initialize the state.
+    Initialize a game in a state of ``state_cls``, whose ``constants`` set the table.
 
     The state carries no rng: later rounds are dealt from the key passed to
     ``step``. Dealer and wall draw from independent subkeys, so the dealer is
     not a deterministic function of the wall.
     """
+    num_players = state_cls.constants.NUM_PLAYERS
     dealer_key, wall_key = jax.random.split(rng)
-    dealer = jnp.int8(jax.random.randint(dealer_key, (), 0, 4))
+    dealer = jnp.int8(jax.random.randint(dealer_key, (), 0, num_players))
     state = _make_state(
+        state_cls,
         current_player=dealer,
         dealer=dealer,
-        init_wind=_calc_wind(dealer),
-        seat_wind=_calc_wind(dealer),
+        init_wind=_calc_wind(dealer, num_players),
+        seat_wind=_calc_wind(dealer, num_players),
     )
     return _init_for_next_round(wall_key, state, game_config)
 
@@ -320,23 +306,29 @@ def _init_for_next_round(
     """
     Initialize the state for the next round.
     """
-    prepared = _prepare_next_round_assets(rng, game_config)
+    prepared = _prepare_next_round_assets(state, rng, game_config)
     return _init_for_next_round_from_prepared(state, prepared, game_config)
 
 
 def _prepare_next_round_assets(
+    state: State,
     rng: PRNGKey,
     game_config: Optional[GameConfig] = None,
 ) -> Tuple[Array, Array, Array, Array, Array]:
-    """Deal the next round's wall from ``rng`` (the key given to ``step``)."""
+    """Deal the next round's wall from ``rng`` (the key given to ``step``), for ``state``'s table."""
     config = _resolve_game_config(game_config)
-    deck = Tile.from_tile_id_to_tile(jax.random.permutation(rng, jnp.arange(NUM_PHYSICAL_TILES))).astype(jnp.int8)
+    constants = state.constants
+    deck = Tile.from_tile_id_to_tile(
+        jax.random.permutation(rng, jnp.arange(constants.NUM_PHYSICAL_TILES))
+    ).astype(jnp.int8)
     deck = _apply_red_five_config(deck, game_config)
-    init_hand_with_red = _deal_hands(deck)
+    init_hand_with_red = _deal_hands(deck, constants.NUM_PLAYERS)
     init_hand = jax.vmap(Hand.to_34)(init_hand_with_red)
-    face_down = jnp.full(MAX_DORA_INDICATORS, SENTINEL_TILE_ID, dtype=jnp.int8)
-    dora_indicators = face_down.at[0].set(deck[_dora_indicator_ix(0)])
-    ura_dora_indicators = face_down.at[0].set(deck[_ura_dora_indicator_ix(0)]) if config.enable_ura_dora else face_down
+    face_down = jnp.full(constants.MAX_DORA_INDICATORS, SENTINEL_TILE_ID, dtype=jnp.int8)
+    dora_indicators = face_down.at[0].set(deck[_dora_indicator_ix(state, 0)])
+    ura_dora_indicators = (
+        face_down.at[0].set(deck[_ura_dora_indicator_ix(state, 0)]) if config.enable_ura_dora else face_down
+    )
     can_ron = v_can_win(init_hand, TILE_RANGE)
     return deck, dora_indicators, ura_dora_indicators, init_hand_with_red, can_ron
 
@@ -376,7 +368,7 @@ def _init_for_next_round_from_prepared(
     legal_action_mask_c_p = _mask_after_draw(
         _replace_state(state, can_win=can_ron), hand_with_red, c_p, new_tile, game_config
     )
-    legal_action_mask_4p = ZERO_MASK_2D.at[c_p, :].set(legal_action_mask_c_p)
+    legal_action_mask_4p = state.constants.ZERO_MASK_2D.at[c_p, :].set(legal_action_mask_c_p)
     state = _replace_state(
         state,
         has_yaku=state.players.has_yaku.at[c_p, CURRENT_TILE].set(can_ron[c_p, new_tile_type]),
@@ -391,18 +383,18 @@ def _init_for_next_round_from_prepared(
     return _set_player_hand(state, c_p, hand_with_red[c_p])
 
 
-def _calc_wind(east_player: Array) -> Array:
+def _calc_wind(east_player: Array, num_players: int) -> Array:
     east_player = jnp.asarray(east_player, dtype=jnp.int32)
-    players = jnp.arange(NUM_PLAYERS, dtype=jnp.int32)
-    return ((players - east_player) % NUM_PLAYERS).astype(jnp.int8)
+    players = jnp.arange(num_players, dtype=jnp.int32)
+    return ((players - east_player) % num_players).astype(jnp.int8)
 
 
 def _is_uninterrupted_first_turn(state: State, next_deck_ix: Array) -> Array:
     """Nobody has drawn twice and nobody has called or made a kan: the first go-around
     (第一巡) that nine terminals, double riichi and the blessings of heaven and earth need.
     ``next_deck_ix`` is the live-wall index right after the latest draw."""
-    live_draws_made = FIRST_DRAW_IDX - next_deck_ix
-    return (live_draws_made <= NUM_PLAYERS) & (state.players.meld_counts.sum() == 0)
+    live_draws_made = state.constants.FIRST_DRAW_IDX - next_deck_ix
+    return (live_draws_made <= state.constants.NUM_PLAYERS) & (state.players.meld_counts.sum() == 0)
 
 
 def _append_action_history(state: State, action: Array) -> State:
@@ -492,7 +484,7 @@ def _apply_action(
     pon_state = _pon(state, action, game_config)
     chi_state = _chi(state, action, game_config)
     pass_state = _pass(state, game_config)
-    prepared_next_round = _prepare_next_round_assets(key, game_config)
+    prepared_next_round = _prepare_next_round_assets(state, key, game_config)
     special_next_round_state = _special_next_round(
         state,
         key,
@@ -631,7 +623,7 @@ def _mask_after_draw(
     new_tile_type = Tile.to_tile_type(new_tile)
     tiles_ok = (hand[c_p] > 0).astype(jnp.bool_)
     tiles_ok = tiles_ok.at[new_tile].set(hand[c_p, new_tile] >= 2)
-    mask = ZERO_MASK_1D.at[: Tile.NUM_TILE_TYPE_WITH_RED].set(tiles_ok)
+    mask = state.constants.ZERO_MASK_1D.at[: Tile.NUM_TILE_TYPE_WITH_RED].set(tiles_ok)
     mask = mask.at[Action.TSUMOGIRI].set(TRUE)
     cannot_kan = _kan_limit_reached(state)
     tile_types = jnp.arange(Tile.NUM_TILE_TYPE, dtype=jnp.int32)
@@ -655,9 +647,9 @@ def _mask_after_draw(
     # mjai 互換エンジン（libriichi / riichienv）は全てそれをチョンボにする。
     if live_draws_left is None:
         live_draws_left = state.round_state.next_deck_ix - _live_wall_end_ix(state)
-    no_next_draw = live_draws_left < MIN_LIVE_DRAWS_FOR_RIICHI
+    no_next_draw = live_draws_left < state.constants.MIN_LIVE_DRAWS_FOR_RIICHI
     # 供託を払えない持ち点 1000 点未満も立直不可（score は 100 点単位）。
-    cannot_afford_stick = state.round_state.score[c_p] < RIICHI_BET_SCORE
+    cannot_afford_stick = state.round_state.score[c_p] < state.constants.RIICHI_BET_SCORE
     can_riichi = jnp.where(
         state.players.riichi[c_p]
         | ~state.players.is_hand_concealed[c_p]
@@ -693,7 +685,7 @@ def _mask_after_draw_in_riichi(
     - Set if the player can win by TSUMO
     """
     new_tile_type = Tile.to_tile_type(new_tile)
-    mask = ZERO_MASK_1D.at[Action.TSUMOGIRI].set(TRUE)
+    mask = state.constants.ZERO_MASK_1D.at[Action.TSUMOGIRI].set(TRUE)
     can_closed_kan = (
         Hand.can_closed_kan_after_riichi(hand[c_p], new_tile_type, state.players.can_win[c_p])
         & ~state.round_state.is_haitei
@@ -758,14 +750,14 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     legal_action_mask_4p = jax.vmap(
         _mask_after_discard, in_axes=(None, 0, 0, None)
     )(
-        state, state.players.hand_with_red, jnp.arange(NUM_PLAYERS), tile
+        state, state.players.hand_with_red, jnp.arange(state.constants.NUM_PLAYERS), tile
     )
     legal_action_mask_4p = legal_action_mask_4p.at[c_p, :].set(
         FALSE
     )  # Set the legal action for the player who discarded the tile to False
     # A hand this tile completes without a yaku is not offered RON, but letting the win go by still makes it furiten.
     missed_win = (
-        (jnp.arange(NUM_PLAYERS) != c_p)
+        (jnp.arange(state.constants.NUM_PLAYERS) != c_p)
         & state.players.can_win[:, Tile.to_tile_type(tile)]
         & ~legal_action_mask_4p[:, Action.RON]
     )
@@ -777,7 +769,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     # After the fourth kan only a ron can take the discard; unclaimed, the round is drawn.
     legal_action_mask_4p = jnp.where(
         is_four_kan_draw,
-        ZERO_MASK_2D.at[:, Action.RON].set(legal_action_mask_4p[:, Action.RON]),
+        state.constants.ZERO_MASK_2D.at[:, Action.RON].set(legal_action_mask_4p[:, Action.RON]),
         legal_action_mask_4p,
     )
 
@@ -804,7 +796,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
         lambda: jax.lax.cond(
             no_meld_player | (is_abortive_draw_normal & no_ron_player),
             lambda: _replace_state(state,   # type:ignore
-                current_player=jnp.int8(_next_seat(c_p)),
+                current_player=jnp.int8(_next_seat(c_p, state.constants.NUM_PLAYERS)),
                 last_player=jnp.int8(c_p),
                 target=jnp.int8(-1),
                 draw_next=TRUE,
@@ -840,12 +832,12 @@ def _mask_after_discard(
     haitei = state.round_state.is_haitei | _live_wall_is_empty(state)
     riichi = state.players.riichi[c_p]
     discarder = state.current_player
-    src = _seats_after(discarder, c_p)
+    src = _seats_after(discarder, c_p, state.constants.NUM_PLAYERS)
     cannot_meld = riichi | haitei
     cannot_kan = _kan_limit_reached(state)
     # CHI only from the player on the left, who discards just before.
-    chi_mask = _mask_for_chi(hand, tile) & ~cannot_meld & (src == NUM_PLAYERS - 1)
-    pm_mask = _mask_for_pon_open_kan(hand, tile, cannot_kan) & ~cannot_meld
+    chi_mask = _mask_for_chi(state, hand, tile) & ~cannot_meld & (src == state.constants.NUM_PLAYERS - 1)
+    pm_mask = _mask_for_pon_open_kan(state, hand, tile, cannot_kan) & ~cannot_meld
     can_ron = state.players.can_win[c_p, Tile.to_tile_type(tile)]
     has_yaku = state.players.has_yaku[c_p, CURRENT_TILE]
     ron_ok = ((has_yaku | haitei) & can_ron) & ~_is_furiten(state)[c_p]
@@ -872,7 +864,7 @@ def _discard_tile_mask_after_chi(hand_after_chi: Array, target: Array, action: A
     return tile_mask
 
 
-def _mask_for_chi(hand: Array, tile: Array) -> Array:
+def _mask_for_chi(state: State, hand: Array, tile: Array) -> Array:
     """
     - Check if the player can play CHI with the target tile
     - A CHI is legal only when at least one discard remains after the kuikae
@@ -890,30 +882,30 @@ def _mask_for_chi(hand: Array, tile: Array) -> Array:
         return can_chi & has_discard
 
     chi_results = jax.vmap(_can_chi_and_discard)(CHI_ACTIONS)
-    legal_action_mask = ZERO_MASK_1D.at[CHI_ACTIONS].set(chi_results)
+    legal_action_mask = state.constants.ZERO_MASK_1D.at[CHI_ACTIONS].set(chi_results)
     return legal_action_mask
 
 
-def _mask_for_pon_open_kan(hand: Array, tile: Array, cannot_kan: Array) -> Array:
+def _mask_for_pon_open_kan(state: State, hand: Array, tile: Array, cannot_kan: Array) -> Array:
     """
     - Check if the player can play PON or OPEN_KAN with the target tile
     """
-    legal_action_mask = ZERO_MASK_1D
+    legal_action_mask = state.constants.ZERO_MASK_1D
     legal_action_mask = legal_action_mask.at[Action.PON].set(Hand.can_no_red_pon(hand, tile))
     legal_action_mask = legal_action_mask.at[Action.PON_RED].set(Hand.can_red_pon(hand, tile))
     legal_action_mask = legal_action_mask.at[Action.OPEN_KAN].set(Hand.can_open_kan(hand, tile) & ~cannot_kan)
     return legal_action_mask
 
 
-def _seats_after(players: Array, player: Array) -> Array:
+def _seats_after(players: Array, player: Array, num_players: int) -> Array:
     """How many seats after ``player`` each of ``players`` sits, in turn order. As a meld's
     ``src``, it says where the claimed tile came from: ``NUM_PLAYERS - 1`` is the left."""
-    return (players - player) % NUM_PLAYERS
+    return (players - player) % num_players
 
 
-def _next_seat(player: Array) -> Array:
+def _next_seat(player: Array, num_players: int) -> Array:
     """The player whose turn comes after ``player``'s."""
-    return (player + 1) % NUM_PLAYERS
+    return (player + 1) % num_players
 
 
 def _next_ron_player(legal_action_mask_4p: Array, discarded_player: Array) -> Array:
@@ -930,7 +922,8 @@ def _next_ron_player(legal_action_mask_4p: Array, discarded_player: Array) -> Ar
     )  # Whether each player can play RON
     can_any_ron = can_ron.any()
     # Calculate the distance from the discarded player and prioritize the player who is closest to the discarded player
-    distance = _seats_after(jnp.arange(NUM_PLAYERS), discarded_player)
+    num_players = legal_action_mask_4p.shape[0]
+    distance = _seats_after(jnp.arange(num_players), discarded_player, num_players)
     distance = jnp.where(can_ron, distance, jnp.inf)
     idx = jnp.argmin(distance)
     return idx, can_any_ron
@@ -964,7 +957,8 @@ def _next_meld_player(legal_action_mask_4p: Array, discarded_player: Array) -> A
 
     # If multiple players can play RON, prioritize the player who is the closest to the discarded player
     def ron_case():
-        distance = _seats_after(jnp.arange(NUM_PLAYERS), discarded_player)
+        num_players = legal_action_mask_4p.shape[0]
+        distance = _seats_after(jnp.arange(num_players), discarded_player, num_players)
         # Set the distance of the players who cannot play RON to infinity
         distance = jnp.where(can_ron, distance, jnp.inf)
         return jnp.argmin(distance)
@@ -981,7 +975,7 @@ def _claims_open_to(legal_action_mask_4p: Array, player: Array) -> Array:
     - A player who can RON answers RON or PASS before any call of their own, whoever else can claim the tile
     - A waiting call stays in ``legal_action_mask_4p`` and is offered once the claims above it are passed
     """
-    others = jnp.arange(NUM_PLAYERS) != player
+    others = jnp.arange(legal_action_mask_4p.shape[0]) != player
     other_ron = (legal_action_mask_4p[:, Action.RON] & others).any()
     other_pon = (legal_action_mask_4p[:, Action.PON : Action.OPEN_KAN + 1].any(axis=1) & others).any()
     mask = legal_action_mask_4p[player]
@@ -991,7 +985,7 @@ def _claims_open_to(legal_action_mask_4p: Array, player: Array) -> Array:
     )
     # Otherwise the prompt would say whether anyone else can ron or pon the tile,
     # and in a double ron whether the player before this one declared RON.
-    ron_or_pass = ZERO_MASK_1D.at[Action.RON].set(TRUE).at[Action.PASS].set(TRUE)
+    ron_or_pass = jnp.zeros_like(mask).at[Action.RON].set(TRUE).at[Action.PASS].set(TRUE)
     return jnp.where(mask[Action.RON], mask & ron_or_pass, mask)
 
 
@@ -1021,10 +1015,10 @@ def _accept_riichi(state: State, game_config: Optional[GameConfig] = None) -> St
         jnp.logical_not(already_riichi), state.players.riichi_declared[l_p]
     )
     _score = state.round_state.score.at[l_p].add(
-        has_l_p_riichi_declared * -RIICHI_BET_SCORE
+        has_l_p_riichi_declared * -state.constants.RIICHI_BET_SCORE
     )  # Subtract the score of the player who accepted the RIICHI
     rewards = (
-        jnp.zeros(NUM_PLAYERS, dtype=jnp.float32).at[l_p].set(has_l_p_riichi_declared * -RIICHI_BET_SCORE)
+        jnp.zeros_like(state.rewards).at[l_p].set(has_l_p_riichi_declared * -state.constants.RIICHI_BET_SCORE)
     )  # Rewards for the player who accepted the RIICHI
     _kyotaku = state.round_state.kyotaku + jnp.int8(has_l_p_riichi_declared)
     riichi = state.players.riichi.at[l_p].set(has_l_p_riichi_declared)
@@ -1090,11 +1084,11 @@ def _turn_over_kan_dora(state: State, game_config: Optional[GameConfig] = None) 
     updates = {"n_kan_doras": k}
     if config.enable_kan_dora:
         updates["dora_indicators"] = state.round_state.dora_indicators.at[k].set(
-            state.round_state.deck[_dora_indicator_ix(k)]
+            state.round_state.deck[_dora_indicator_ix(state, k)]
         )
         if config.enable_ura_dora:
             updates["ura_dora_indicators"] = state.round_state.ura_dora_indicators.at[k].set(
-                state.round_state.deck[_ura_dora_indicator_ix(k)]
+                state.round_state.deck[_ura_dora_indicator_ix(state, k)]
             )
     return _replace_state(state, **updates)
 
@@ -1119,7 +1113,7 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     c_p = state.current_player
     config = _resolve_game_config(game_config)
     n_kan = state.players.n_kan.sum()
-    rinshan_tile = state.round_state.deck[_rinshan_ix(n_kan)]
+    rinshan_tile = state.round_state.deck[_rinshan_ix(state, n_kan)]
     kan_dora_pre_flipped = state.round_state.n_kan_doras.astype(jnp.int32) > n_kan.astype(
         jnp.int32
     )
@@ -1213,7 +1207,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
         state.round_state.target,
         self_kan_tile,
     )
-    rinshan_tile = state.round_state.deck[_rinshan_ix(state.players.n_kan.sum())]
+    rinshan_tile = state.round_state.deck[_rinshan_ix(state, state.players.n_kan.sum())]
     # Apply KAN action to hand, meld, river
     is_open_kan = action == Action.OPEN_KAN
     pon = state.players.pon[(c_p, Tile.to_tile_type(tile))]
@@ -1258,7 +1252,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
     # Triple ron is settled inside ``_ron`` itself; only added-kan opens up the
     # robbing-kan window (closed/open kan are not ronnable in default rules).
     next_ron_player, can_any_ron = _next_ron_player(legal_action_mask_4p, c_p)
-    chankan_mask = ZERO_MASK_2D.at[:, Action.RON].set(legal_action_mask_4p[:, Action.RON])
+    chankan_mask = state.constants.ZERO_MASK_2D.at[:, Action.RON].set(legal_action_mask_4p[:, Action.RON])
     return jax.lax.cond(
         is_added_kan & can_any_ron,
         lambda: _replace_state(state,   # type:ignore
@@ -1277,7 +1271,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
             # Same as the branch above, so that whether anyone could rob the kan
             # does not show in ``last_player``.
             last_player=jnp.where(is_added_kan, c_p, state.round_state.last_player),
-            legal_action_mask=ZERO_MASK_2D,
+            legal_action_mask=state.constants.ZERO_MASK_2D,
             kan_declared=TRUE,  # KAN is declared
             draw_next=FALSE,
         ),
@@ -1353,7 +1347,7 @@ def _open_kan(state: State, game_config: Optional[GameConfig] = None):
     l_p = state.round_state.last_player
     state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
-    src = _seats_after(l_p, c_p)
+    src = _seats_after(l_p, c_p, state.constants.NUM_PLAYERS)
     meld = Meld.init(Action.OPEN_KAN, state.round_state.target, src)
     state = _append_meld(state, meld, c_p)
     hand_with_red_row = Hand.open_kan(state.players.hand_with_red[c_p], state.round_state.target)
@@ -1382,7 +1376,7 @@ def _pon(state: State, action: Array, game_config: Optional[GameConfig] = None):
     tar = state.round_state.target
     state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
-    src = _seats_after(l_p, c_p)
+    src = _seats_after(l_p, c_p, state.constants.NUM_PLAYERS)
     meld = Meld.init(action, tar, src)
     state = _append_meld(state, meld, c_p)
     pon_hand = Hand.pon(state.players.hand_with_red[c_p], tar, action)
@@ -1393,7 +1387,7 @@ def _pon(state: State, action: Array, game_config: Optional[GameConfig] = None):
     river = River.add_meld(state.players.river, action, l_p, state.players.discard_counts[l_p] - 1, src)
     # Kuikae is by tile type, so a pon of a five also forbids the other color of five.
     legal_action_mask_4p = (
-        ZERO_MASK_2D.at[c_p, : Tile.NUM_TILE_TYPE_WITH_RED]
+        state.constants.ZERO_MASK_2D.at[c_p, : Tile.NUM_TILE_TYPE_WITH_RED]
         .set(_set_tile_type_action((hand_with_red[c_p] > 0).astype(jnp.bool_), tar, FALSE))
         .at[c_p, Action.PASS]
         .set(FALSE)
@@ -1422,7 +1416,7 @@ def _chi(state: State, action: Array, game_config: Optional[GameConfig] = None):
     tar = state.round_state.target
     state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
-    meld = Meld.init(action, tar, src=jnp.int32(NUM_PLAYERS - 1))  # from the left
+    meld = Meld.init(action, tar, src=jnp.int32(state.constants.NUM_PLAYERS - 1))  # from the left
     state = _append_meld(state, meld, c_p)
     chi_hand = Hand.chi(state.players.hand_with_red[c_p], tar, action)
     hand_with_red = state.players.hand_with_red.at[c_p].set(chi_hand)
@@ -1434,7 +1428,7 @@ def _chi(state: State, action: Array, game_config: Optional[GameConfig] = None):
     )
     # Add the meld to the river
     river = River.add_meld(
-        state.players.river, action, tar_p, state.players.discard_counts[tar_p] - 1, jnp.int32(NUM_PLAYERS - 1)
+        state.players.river, action, tar_p, state.players.discard_counts[tar_p] - 1, jnp.int32(state.constants.NUM_PLAYERS - 1)
     )
     state = _replace_state(state,   # type:ignore
         target=jnp.int8(-1),
@@ -1457,9 +1451,9 @@ def _mask_after_chi(
     - If the prohibited tile is 5, also prohibit red tiles
     """
     tile_mask = _discard_tile_mask_after_chi(hand[c_p], target, action)
-    player_mask = ZERO_MASK_1D.at[: Tile.NUM_TILE_TYPE_WITH_RED].set(tile_mask)
+    player_mask = state.constants.ZERO_MASK_1D.at[: Tile.NUM_TILE_TYPE_WITH_RED].set(tile_mask)
     # Build the legal action mask for the player
-    legal_action_mask_4p = ZERO_MASK_2D.at[c_p].set(player_mask)
+    legal_action_mask_4p = state.constants.ZERO_MASK_2D.at[c_p].set(player_mask)
     return legal_action_mask_4p
 
 
@@ -1486,7 +1480,7 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
     legal_action_mask_4p = state.players.legal_action_mask.at[c_p, :].set(
         state.players.legal_action_mask[c_p] & ~_claims_open_to(state.players.legal_action_mask, c_p)
     )
-    post_ron_mask = ZERO_MASK_2D.at[:, Action.RON].set(legal_action_mask_4p[:, Action.RON])
+    post_ron_mask = state.constants.ZERO_MASK_2D.at[:, Action.RON].set(legal_action_mask_4p[:, Action.RON])
     next_ron_player, can_any_ron = _next_ron_player(
         post_ron_mask, state.round_state.last_player
     )
@@ -1519,7 +1513,7 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
                 current_player=jnp.where(
                     can_robbing_kan,
                     jnp.int8(state.round_state.last_player),
-                    jnp.int8(_next_seat(state.round_state.last_player)),
+                    jnp.int8(_next_seat(state.round_state.last_player, state.constants.NUM_PLAYERS)),
                 ),
                 target=jnp.int8(-1),
                 draw_next=TRUE & ~can_robbing_kan,
@@ -1559,7 +1553,7 @@ def _riichi(state: State):
         )
     )
     legal_action_mask_for_discard = discard_candidates & (state.players.hand_with_red[c_p] > 0)
-    player_mask = ZERO_MASK_1D.at[: Tile.NUM_TILE_TYPE_WITH_RED].set(legal_action_mask_for_discard)
+    player_mask = state.constants.ZERO_MASK_1D.at[: Tile.NUM_TILE_TYPE_WITH_RED].set(legal_action_mask_for_discard)
     player_mask = player_mask.at[state.round_state.last_draw].set(
         (state.players.hand_with_red[c_p, state.round_state.last_draw] >= 2)
         & legal_action_mask_for_discard[state.round_state.last_draw]
@@ -1601,26 +1595,28 @@ def _ron(state: State, game_config: Optional[GameConfig] = None) -> State:
     score = _win_score(basic_score, state.round_state.dealer == c_p)
     # In double-ron, honba and kyotaku are paid only once on the first ron.
     is_first_ron = ~state.pending_winners.any()
-    honba = jnp.where(is_first_ron, state.round_state.honba * HONBA_SCORE, 0)
-    normal_reward = jnp.zeros(NUM_PLAYERS, dtype=jnp.float32)
+    honba = jnp.where(is_first_ron, state.round_state.honba * state.constants.HONBA_SCORE, 0)
+    normal_reward = jnp.zeros(state.constants.NUM_PLAYERS, dtype=jnp.float32)
     normal_reward = normal_reward.at[c_p].set(score + honba)
     normal_reward = normal_reward.at[state.round_state.last_player].set(-score - honba)
     is_pao, pao_player = _pao(state, c_p)
-    pao_reward = jnp.zeros(NUM_PLAYERS, dtype=jnp.float32)
+    pao_reward = jnp.zeros(state.constants.NUM_PLAYERS, dtype=jnp.float32)
     pao_reward = pao_reward.at[c_p].set(score + honba)
     # The points are split with the discarder, but the honba is the liable player's alone.
     pao_reward = pao_reward.at[pao_player].add(-score / 2 - honba)
     pao_reward = pao_reward.at[state.round_state.last_player].add(-score / 2)
     reward = jnp.where(config.enable_pao & is_pao, pao_reward, normal_reward)
     # The Kyotaku is already paid when the RIICHI is declared, so we only need to add the Kyotaku to the winner
-    kyotaku_bonus = RIICHI_BET_SCORE * state.round_state.kyotaku.astype(jnp.int32) * is_first_ron  # int8 wraps at 13 sticks
+    kyotaku_bonus = (
+        state.constants.RIICHI_BET_SCORE * state.round_state.kyotaku.astype(jnp.int32) * is_first_ron
+    )  # int8 wraps at 13 sticks
     reward = reward.at[c_p].add(kyotaku_bonus)
     # Nothing is paid, recorded or cleared off the table until everyone who can
     # ron this tile has answered: the ones still to answer must not learn how the
     # ones before them did. ``_settle_ron`` pays the whole chain at once.
     pending = jnp.where(is_first_ron, jnp.zeros_like(state.rewards), state.pending_rewards) + reward
     pending_winners = state.pending_winners.at[c_p].set(TRUE)
-    remaining_ron_mask = ZERO_MASK_2D.at[:, Action.RON].set(
+    remaining_ron_mask = state.constants.ZERO_MASK_2D.at[:, Action.RON].set(
         state.players.legal_action_mask[:, Action.RON]
     )
     remaining_ron_mask = remaining_ron_mask.at[c_p, Action.RON].set(FALSE)
@@ -1678,7 +1674,8 @@ def _settle_ron(state: State) -> State:
     """
     winners = state.pending_winners
     # The winner ``_next_ron_player`` asked last, i.e. the farthest from the discarder.
-    distance = _seats_after(jnp.arange(NUM_PLAYERS), state.round_state.last_player)
+    num_players = state.constants.NUM_PLAYERS
+    distance = _seats_after(jnp.arange(num_players), state.round_state.last_player, num_players)
     last_winner = jnp.argmax(jnp.where(winners, distance, -1))
     return _replace_state(
         _record_rons(state, winners),
@@ -1690,7 +1687,7 @@ def _settle_ron(state: State) -> State:
         pending_winners=jnp.zeros_like(winners),
         kyotaku=jnp.int8(0),
         has_won=state.players.has_won | winners,
-        legal_action_mask=ZERO_MASK_2D.at[:, Action.DUMMY].set(TRUE),
+        legal_action_mask=state.constants.ZERO_MASK_2D.at[:, Action.DUMMY].set(TRUE),
         kan_declared=FALSE,
         draw_next=FALSE,
     )
@@ -1698,8 +1695,9 @@ def _settle_ron(state: State) -> State:
 
 def _record_rons(state: State, winners: Array) -> State:
     """Record a RON for each of ``winners``, in the order ``_next_ron_player`` asked them."""
-    for distance in range(NUM_PLAYERS):
-        seat = (state.round_state.last_player + distance) % NUM_PLAYERS
+    num_players = state.constants.NUM_PLAYERS
+    for distance in range(num_players):
+        seat = (state.round_state.last_player + distance) % num_players
         state = _write_action_history(state, seat, jnp.int32(Action.RON), winners[seat])
     return state
 
@@ -1752,17 +1750,18 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
         jnp.int32(fan),  # Calculate the score when the tile is discarded
         jnp.int32(fu),
     )
-    honba = state.round_state.honba * _HONBA_PER_PAYER
+    num_players = state.constants.NUM_PLAYERS
+    honba = state.round_state.honba * state.constants.HONBA_PER_PAYER
     score = _win_score(basic_score, _dealer == c_p)
-    normal_reward = _tsumo_payments(c_p, _dealer, basic_score, honba)
+    normal_reward = _tsumo_payments(c_p, _dealer, basic_score, honba, num_players)
     is_pao, pao_player = _pao(state, c_p)
     # The liable player pays it all, honba included.
-    pao_reward = jnp.zeros(NUM_PLAYERS, dtype=jnp.float32)
-    pao_reward = pao_reward.at[c_p].set(score + (NUM_PLAYERS - 1) * honba)
-    pao_reward = pao_reward.at[pao_player].set(-score - (NUM_PLAYERS - 1) * honba)
+    pao_reward = jnp.zeros(num_players, dtype=jnp.float32)
+    pao_reward = pao_reward.at[c_p].set(score + (num_players - 1) * honba)
+    pao_reward = pao_reward.at[pao_player].set(-score - (num_players - 1) * honba)
     reward = jnp.where(config.enable_pao & is_pao, pao_reward, normal_reward)
     # The Kyotaku is already paid when the RIICHI is declared, so we only need to add the Kyotaku to the winner
-    kyotaku_bonus = RIICHI_BET_SCORE * state.round_state.kyotaku.astype(jnp.int32)  # int8 wraps at 13 sticks
+    kyotaku_bonus = state.constants.RIICHI_BET_SCORE * state.round_state.kyotaku.astype(jnp.int32)  # int8 wraps at 13 sticks
     reward = reward.at[c_p].add(kyotaku_bonus)
     score = state.round_state.score + reward
     return _replace_state(state,   # type:ignore
@@ -1771,7 +1770,7 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
         score=jnp.int32(score),
         kyotaku=jnp.int8(0),  # Clear the Kyotaku
         has_won=state.players.has_won.at[c_p].set(TRUE),
-        legal_action_mask=ZERO_MASK_2D.at[:, Action.DUMMY].set(
+        legal_action_mask=state.constants.ZERO_MASK_2D.at[:, Action.DUMMY].set(
             TRUE
         ),  # Set the dummy action
     )
@@ -1791,12 +1790,12 @@ def _abortive_draw_normal(state: State) -> State:
     rewards = jnp.where(
         state.players.has_nagashi_mangan.any(),
         _nagashi_mangan_payments(state).astype(jnp.int32),
-        _noten_payments(tenpai),
+        _noten_payments(state, tenpai),
     )
     return _replace_state(state,   # type:ignore
         rewards=rewards.astype(jnp.float32),
         score=jnp.int32(state.round_state.score + jnp.float32(rewards)),  # Update the score
-        legal_action_mask=ZERO_MASK_2D.at[:, Action.DUMMY].set(
+        legal_action_mask=state.constants.ZERO_MASK_2D.at[:, Action.DUMMY].set(
             TRUE
         ),  # Set the dummy action
         terminated_round=TRUE,
@@ -1804,16 +1803,18 @@ def _abortive_draw_normal(state: State) -> State:
     )
 
 
-def _noten_payments(tenpai: Array) -> Array:
+def _noten_payments(state: State, tenpai: Array) -> Array:
     """Each player's noten payment in an exhaustive draw, shaped (NUM_PLAYERS,): the noten
     players pay ``NOTEN_PENALTY_SCORE`` between them to the tenpai players. Nothing moves
     when everyone or nobody is tenpai."""
+    num_players = state.constants.NUM_PLAYERS
+    pool = state.constants.NOTEN_PENALTY_SCORE
     n_tenpai = tenpai.sum()
-    n_not_tenpai = NUM_PLAYERS - n_tenpai
-    payments = jnp.where(tenpai, NOTEN_PENALTY_SCORE // n_tenpai, -NOTEN_PENALTY_SCORE // n_not_tenpai)
+    n_not_tenpai = num_players - n_tenpai
+    payments = jnp.where(tenpai, pool // n_tenpai, -pool // n_not_tenpai)
     return jnp.where(
-        jnp.logical_or(n_tenpai == 0, n_tenpai == NUM_PLAYERS),
-        jnp.zeros(NUM_PLAYERS, dtype=jnp.int32),
+        jnp.logical_or(n_tenpai == 0, n_tenpai == num_players),
+        jnp.zeros(num_players, dtype=jnp.int32),
         payments,
     )
 
@@ -1822,8 +1823,9 @@ def _nagashi_mangan_payments(state: State) -> Array:
     """Every nagashi mangan (流し満貫) is paid as a mangan tsumo without honba; the
     payments are summed per player."""
     return (
-        jax.vmap(_mangan_tsumo, in_axes=(0, None, None))(
-            jnp.arange(NUM_PLAYERS, dtype=jnp.int32),
+        jax.vmap(_mangan_tsumo, in_axes=(None, 0, None, None))(
+            state,
+            jnp.arange(state.constants.NUM_PLAYERS, dtype=jnp.int32),
             state.round_state.dealer,
             jnp.int8(0),
         )
@@ -1840,7 +1842,7 @@ def _special_next_round(
 ) -> State:
     """After a special abortive draw the dealer deals again, with one more honba."""
     if prepared_next_round is None:
-        prepared_next_round = _prepare_next_round_assets(key, game_config)
+        prepared_next_round = _prepare_next_round_assets(state, key, game_config)
     return _init_for_next_round_from_prepared(
         _carry_over(state, will_dealer_continue=TRUE), prepared_next_round, game_config
     )
@@ -1873,7 +1875,7 @@ def _pao(state: State, winner: Array) -> Tuple[Array, Array]:
     relevant_idx = jnp.where(relevant, jnp.arange(melds.shape[0], dtype=jnp.int32), -1)
     last_idx = jnp.max(relevant_idx)
     is_pao = last_idx >= 0
-    pao_player = jnp.where(is_pao, (winner + srcs[last_idx]) % NUM_PLAYERS, jnp.int32(0))
+    pao_player = jnp.where(is_pao, (winner + srcs[last_idx]) % state.constants.NUM_PLAYERS, jnp.int32(0))
     return is_pao, pao_player
 
 
@@ -1883,16 +1885,16 @@ def _win_score(basic_score: Array, is_dealer: Array) -> Array:
     return jnp.ceil(jnp.where(is_dealer, basic_score * 6, basic_score * 4) / 100)
 
 
-def _tsumo_payments(winner: Array, dealer: Array, basic_score: Array, honba: Array) -> Array:
+def _tsumo_payments(winner: Array, dealer: Array, basic_score: Array, honba: Array, num_players: int) -> Array:
     """Every player's share of a tsumo, in score units: the dealer pays twice the basic
     points and everyone else once, each rounded up to 100, and each payer adds ``honba``."""
     s1 = jnp.ceil(basic_score / 100)
     s2 = jnp.ceil(basic_score * 2 / 100)
-    payers = NUM_PLAYERS - 1
+    payers = num_players - 1
     return jnp.where(
         dealer == winner,
-        jnp.full(NUM_PLAYERS, -s2 - honba, dtype=jnp.float32).at[winner].set(s2 * payers + payers * honba),
-        jnp.full(NUM_PLAYERS, -s1 - honba, dtype=jnp.float32)
+        jnp.full(num_players, -s2 - honba, dtype=jnp.float32).at[winner].set(s2 * payers + payers * honba),
+        jnp.full(num_players, -s1 - honba, dtype=jnp.float32)
         .at[dealer]
         .set(-s2 - honba)
         .at[winner]
@@ -1900,8 +1902,14 @@ def _tsumo_payments(winner: Array, dealer: Array, basic_score: Array, honba: Arr
     )
 
 
-def _mangan_tsumo(winner: Array, dealer: Array, honba: Array) -> Array:
-    return _tsumo_payments(winner, dealer, Yaku.score(jnp.int32(5), jnp.int32(30)), honba * _HONBA_PER_PAYER)
+def _mangan_tsumo(state: State, winner: Array, dealer: Array, honba: Array) -> Array:
+    return _tsumo_payments(
+        winner,
+        dealer,
+        Yaku.score(jnp.int32(5), jnp.int32(30)),
+        honba * state.constants.HONBA_PER_PAYER,
+        state.constants.NUM_PLAYERS,
+    )
 
 
 def _rank_order(round_state) -> Array:
@@ -1909,15 +1917,16 @@ def _rank_order(round_state) -> Array:
     return jnp.lexsort((round_state.init_wind, -round_state.score))
 
 
-def _final_score(round_state) -> Array:
+def _final_score(state: State) -> Array:
     """Score at game end: raw score plus uma, with the riichi sticks to the top."""
+    round_state = state.round_state
     order = _rank_order(round_state)
     rank_points = jnp.zeros_like(round_state.score).at[order].set(round_state.order_points)
     score = round_state.score + rank_points
-    return score.at[order[0]].add(RIICHI_BET_SCORE * round_state.kyotaku.astype(jnp.int32))
+    return score.at[order[0]].add(state.constants.RIICHI_BET_SCORE * round_state.kyotaku.astype(jnp.int32))
 
 
-def _is_game_end(round_state, will_dealer_continue: Array) -> Array:
+def _is_game_end(state: State, will_dealer_continue: Array) -> Array:
     """Whether the hanchan/tonpuusen is over now that a kyoku has ended.
 
     ``round`` is 0-based and ``round_limit`` is the index of the last regular
@@ -1926,16 +1935,18 @@ def _is_game_end(round_state, will_dealer_continue: Array) -> Array:
     (西入) and ends as soon as someone does, or unconditionally once the last
     extra round has been played.
     """
+    constants = state.constants
+    round_state = state.round_state
     score = round_state.score
     is_final_round = round_state.round >= round_state.round_limit
-    is_last_extra_round = round_state.round >= round_state.round_limit + SUDDEN_DEATH_ROUNDS
+    is_last_extra_round = round_state.round >= round_state.round_limit + constants.SUDDEN_DEATH_ROUNDS
     # The deal leaves the current dealer, or it stays but they are top and stop.
     deal_passes = ~will_dealer_continue | (_rank_order(round_state)[0] == round_state.dealer)
     return (
         (score < 0).any()
         # The last extra round still gives way to the dealer's renchan.
         | (is_last_extra_round & ~will_dealer_continue)
-        | (is_final_round & deal_passes & (score.max() >= TARGET_SCORE))
+        | (is_final_round & deal_passes & (score.max() >= constants.TARGET_SCORE))
     )
 
 
@@ -1957,12 +1968,14 @@ def _carry_over(state: State, will_dealer_continue: Array) -> State:
     the scores and the riichi sticks carry over.
     """
     dealer = state.round_state.dealer
-    next_dealer = jnp.where(will_dealer_continue, dealer, _next_seat(dealer))
+    num_players = state.constants.NUM_PLAYERS
+    next_dealer = jnp.where(will_dealer_continue, dealer, _next_seat(dealer, num_players))
     has_winner = state.players.has_won.any()
     return _make_state(
+        type(state),
         current_player=next_dealer,  # Start from the dealer
         dealer=next_dealer,
-        seat_wind=_calc_wind(next_dealer),
+        seat_wind=_calc_wind(next_dealer, num_players),
         round=jnp.where(will_dealer_continue, state.round_state.round, state.round_state.round + 1),
         # _make_state starts from default_state(), so ANY field not passed here
         # silently reverts to the dataclass default -- round_limit would drop to 7
@@ -1995,16 +2008,16 @@ def _next_round(
     """
     dc = state.round_state.dummy_count  # int8
     if prepared_next_round is None:
-        prepared_next_round = _prepare_next_round_assets(key, game_config)
+        prepared_next_round = _prepare_next_round_assets(state, key, game_config)
 
     # ---- During the DUMMY sharing phase, only rotate ----
     def _rotate_once(s: State):
         will_dealer_continue = _will_dealer_continue(s)
-        final_score = _final_score(s.round_state)
+        final_score = _final_score(s)
 
-        game_end = _is_game_end(s.round_state, will_dealer_continue)
+        game_end = _is_game_end(s, will_dealer_continue)
         return _replace_state(s, 
-            current_player=jnp.int8(_next_seat(s.current_player)),
+            current_player=jnp.int8(_next_seat(s.current_player, s.constants.NUM_PLAYERS)),
             terminated=(s.round_state.dummy_count == 0) & game_end,
             dummy_count=jnp.int8(
                 s.round_state.dummy_count + jnp.int8(1)
@@ -2034,7 +2047,7 @@ def _next_round(
             terminated=TRUE,
         )
 
-        game_end = _is_game_end(s.round_state, will_dealer_continue)
+        game_end = _is_game_end(s, will_dealer_continue)
         # Determine the next round or end the game
         return jax.lax.cond(
             game_end,
@@ -2052,7 +2065,7 @@ def _next_round(
     final_start_state = _finalize_and_start_next(state)
     rotate_state = _rotate_once(state)
     return jax.lax.cond(
-        dc == jnp.int8(NUM_PLAYERS - 1),
+        dc == jnp.int8(state.constants.NUM_PLAYERS - 1),
         lambda: final_start_state,
         lambda: rotate_state,  # Early return here
     )
@@ -2070,11 +2083,11 @@ def _start_next_round_or_end_game(
     ``single`` mode. Branches into game-end (terminated=True with final score) or
     next-round init state (rewards from the round-end step are preserved).
     """
-    final_score = _final_score(state.round_state)
+    final_score = _final_score(state)
     will_dealer_continue = _will_dealer_continue(state)
-    game_end = _is_game_end(state.round_state, will_dealer_continue)
+    game_end = _is_game_end(state, will_dealer_continue)
 
-    prepared = _prepare_next_round_assets(key, game_config)
+    prepared = _prepare_next_round_assets(state, key, game_config)
     next_round_state = _init_for_next_round_from_prepared(
         _carry_over(state, will_dealer_continue), prepared, game_config
     )

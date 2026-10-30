@@ -57,7 +57,7 @@ def before_the_discard(p0, p1, p2, *, dealer=3, riichi=False, robbing_kan=False)
         base,
         current_player=jnp.int8(3),
         dealer=jnp.int8(dealer),
-        seat_wind=_calc_wind(dealer),
+        seat_wind=_calc_wind(dealer, 4),
         last_player=jnp.int8(2),
         hand_with_red=hands,
         hand=hands34,

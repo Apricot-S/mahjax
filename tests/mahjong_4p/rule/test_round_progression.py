@@ -137,7 +137,7 @@ def test_red_auto_matches_dummy_share_at_game_end() -> None:
 def test_deal_hands_returns_red_aware_shape() -> None:
     rng = jax.random.PRNGKey(1)
     deck = Tile.from_tile_id_to_tile(jax.random.permutation(rng, jnp.arange(136)))
-    hand = _deal_hands(deck)
+    hand = _deal_hands(deck, 4)
     assert hand.shape == (4, Tile.NUM_TILE_TYPE_WITH_RED)
     assert bool(jnp.all(hand.sum(axis=1) == 13))
 
@@ -152,13 +152,13 @@ def test_calc_wind_assigns_east_to_dealer() -> None:
     """
     from mahjax.mahjong_4p.logic import _calc_wind
 
-    assert _calc_wind(jnp.int32(0)).tolist() == [0, 1, 2, 3]
-    assert _calc_wind(jnp.int32(1)).tolist() == [3, 0, 1, 2]
-    assert _calc_wind(jnp.int32(2)).tolist() == [2, 3, 0, 1]
-    assert _calc_wind(jnp.int32(3)).tolist() == [1, 2, 3, 0]
+    assert _calc_wind(jnp.int32(0), 4).tolist() == [0, 1, 2, 3]
+    assert _calc_wind(jnp.int32(1), 4).tolist() == [3, 0, 1, 2]
+    assert _calc_wind(jnp.int32(2), 4).tolist() == [2, 3, 0, 1]
+    assert _calc_wind(jnp.int32(3), 4).tolist() == [1, 2, 3, 0]
     # The invariant the four literals encode.
     for dealer in range(4):
-        assert int(_calc_wind(jnp.int32(dealer))[dealer]) == 0
+        assert int(_calc_wind(jnp.int32(dealer), 4)[dealer]) == 0
 
 
 def _end_of_round_state(env, **overrides):
@@ -389,10 +389,11 @@ def test_red_tied_players_are_ranked_by_their_starting_wind() -> None:
         dealer=jnp.int8(1),
     )
 
+    state = default_state().replace(round_state=round_state)
     # P3 outranks P1 and P2 outranks P0, so P3 takes the top uma and the stick.
-    assert jnp.array_equal(m._final_score(round_state), jnp.array([180 - 300, 320 + 100, 180 - 100, 320 + 300 + 10]))
+    assert jnp.array_equal(m._final_score(state), jnp.array([180 - 300, 320 + 100, 180 - 100, 320 + 300 + 10]))
     # The dealer P1 is not top on a tie with P3, so the dealer's renchan keeps the game going.
-    assert not bool(m._is_game_end(round_state, jnp.bool_(True)))
+    assert not bool(m._is_game_end(state, jnp.bool_(True)))
 
     # The starting winds survive a round change.
     env = compiled_env(round_mode="half", round_end="auto")

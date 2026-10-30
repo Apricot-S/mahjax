@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from types import ModuleType
+from typing import ClassVar
+
 import jax.numpy as jnp
 
 from mahjax._src.struct import dataclass
@@ -16,6 +19,7 @@ from mahjax.common.constants import (
 from mahjax.common.meld import EMPTY_MELD
 from mahjax.common.tile import EMPTY_RIVER
 
+from . import constants as _constants
 from .constants import (
     DEAD_WALL_TILES,
     FIRST_DRAW_IDX,
@@ -109,6 +113,10 @@ class RoundState:
 
 @dataclass
 class EnvState:
+    # The table this state is played at (players, wall, payments, ...). The rules read
+    # it from here, so the same rules play any table; it is not part of the pytree.
+    constants: ClassVar[ModuleType] = _constants
+
     current_player: jnp.int8 = jnp.int8(0)
     legal_action_mask: jnp.ndarray = jnp.zeros((LEGAL_ACTION_SIZE,), dtype=jnp.bool_)
     players: PlayerStateArrays = PlayerStateArrays()
