@@ -126,8 +126,16 @@ def _live_wall_is_empty(state: State) -> Array:
 
 
 def _rinshan_ix(state: State, n_kan: Array) -> Array:
-    """Wall index of the replacement tile drawn after the ``n_kan``-th kan (0-based)."""
+    """Wall index of the ``n_kan``-th replacement tile (0-based), drawn after a kan or a kita."""
     return jnp.int32(state.constants.RINSHAN_IX + n_kan)
+
+
+def _replacements_drawn(state: State) -> Array:
+    """Replacement tiles owed so far: one per kan, and one per kita on a table with kita."""
+    n = state.players.n_kan.sum()
+    if state.constants.HAS_KITA:
+        n = n + state.players.kita.sum()
+    return n
 
 
 def _dora_indicator_ix(state: State, k: Array) -> Array:
@@ -394,7 +402,10 @@ def _is_uninterrupted_first_turn(state: State, next_deck_ix: Array) -> Array:
     (第一巡) that nine terminals, double riichi and the blessings of heaven and earth need.
     ``next_deck_ix`` is the live-wall index right after the latest draw."""
     live_draws_made = state.constants.FIRST_DRAW_IDX - next_deck_ix
-    return (live_draws_made <= state.constants.NUM_PLAYERS) & (state.players.meld_counts.sum() == 0)
+    uninterrupted = (live_draws_made <= state.constants.NUM_PLAYERS) & (state.players.meld_counts.sum() == 0)
+    if state.constants.HAS_KITA:
+        uninterrupted = uninterrupted & (state.players.kita.sum() == 0)  # a kita interrupts it too
+    return uninterrupted
 
 
 def _append_action_history(state: State, action: Array) -> State:
@@ -500,22 +511,19 @@ def _apply_action(
         )
     else:
         next_round_state = state  # DUMMY: no-op; illegal under ``auto``, env.step catches it.
-    fn_idx = ACTION_KIND[action]
-    return jax.lax.switch(
-        fn_idx,
-        [
-            lambda: discard_state,
-            lambda: kan_state,
-            lambda: riichi_state,
-            lambda: ron_state,
-            lambda: tsumo_state,
-            lambda: pon_state,
-            lambda: chi_state,
-            lambda: pass_state,
-            lambda: special_next_round_state,
-            lambda: next_round_state,
-        ],
-    )
+    branches = [
+        lambda: discard_state,
+        lambda: kan_state,
+        lambda: riichi_state,
+        lambda: ron_state,
+        lambda: tsumo_state,
+        lambda: pon_state,
+        lambda: chi_state,
+        lambda: pass_state,
+        lambda: special_next_round_state,
+        lambda: next_round_state,
+    ]
+    return jax.lax.switch(ACTION_KIND[action], branches)
 
 
 def _advance_to_next_decision(
@@ -559,10 +567,12 @@ def _draw(state: State, game_config: Optional[GameConfig] = None) -> State:
     config = _resolve_game_config(game_config)
     c_p = state.current_player
     next_deck_ix = state.round_state.next_deck_ix - 1
-    is_four_riichi_draw = state.players.riichi.all()  # 四家立直: every player is in riichi
-    is_special_abortive_draw = config.enable_special_abortive_draw & (
-        _is_four_wind_draw(state) | is_four_riichi_draw
-    )
+    special_draw = FALSE
+    if state.constants.HAS_FOUR_WIND_DRAW:
+        special_draw = special_draw | _is_four_wind_draw(state)
+    if state.constants.HAS_FOUR_RIICHI_DRAW:
+        special_draw = special_draw | state.players.riichi.all()  # 四家立直: every player is in riichi
+    is_special_abortive_draw = config.enable_special_abortive_draw & special_draw
     special_state = _trigger_special_abortive_draw(state)
     is_haitei = state.round_state.next_deck_ix == _live_wall_end_ix(state)
     new_tile = state.round_state.deck[state.round_state.next_deck_ix]
@@ -659,6 +669,10 @@ def _mask_after_draw(
         Hand.can_riichi(hand[c_p]),
     )
     mask = mask.at[Action.RIICHI].set(can_riichi)
+    if state.constants.HAS_KITA:
+        # A north in hand can be set aside, but not on the haitei draw.
+        north = state.constants.NORTH
+        mask = mask.at[state.constants.KITA_ACTION].set((hand[c_p, north] > 0) & ~state.round_state.is_haitei)
     can_tsumo = state.players.can_win[c_p, new_tile_type]
     _can_after_kan = state.round_state.can_after_kan
     _is_haitei = state.round_state.is_haitei
@@ -693,6 +707,10 @@ def _mask_after_draw_in_riichi(
     )
     mask = mask.at[Tile.NUM_TILE_TYPE_WITH_RED + new_tile_type].set(can_closed_kan)
     mask = mask.at[Action.TSUMO].set(state.players.can_win[c_p, new_tile_type])
+    if state.constants.HAS_KITA:
+        # In riichi only a north just drawn can be set aside.
+        kita_ok = (new_tile_type == state.constants.NORTH) & ~state.round_state.is_haitei
+        mask = mask.at[state.constants.KITA_ACTION].set(kita_ok)
     return mask
 
 
@@ -1116,7 +1134,7 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     c_p = state.current_player
     config = _resolve_game_config(game_config)
     n_kan = state.players.n_kan.sum()
-    rinshan_tile = state.round_state.deck[_rinshan_ix(state, n_kan)]
+    rinshan_tile = state.round_state.deck[_rinshan_ix(state, _replacements_drawn(state))]
     kan_dora_pre_flipped = state.round_state.n_kan_doras.astype(jnp.int32) > n_kan.astype(
         jnp.int32
     )
@@ -1143,6 +1161,12 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     state = jax.lax.cond(
         kan_dora_pre_flipped, _after_kan_dora_already_done, _after_open_or_added_kan, state
     )
+    return _draw_replacement(state, rinshan_tile, game_config)
+
+
+def _draw_replacement(state: State, rinshan_tile: Array, game_config: Optional[GameConfig] = None) -> State:
+    """The current player draws ``rinshan_tile`` from the dead wall, after a kan or a kita."""
+    c_p = state.current_player
     # Rinshan draws come from the dead wall and never qualify as Haitei.
     is_haitei = FALSE
     hand_with_red = state.players.hand_with_red.at[c_p].set(
@@ -1210,7 +1234,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
         state.round_state.target,
         self_kan_tile,
     )
-    rinshan_tile = state.round_state.deck[_rinshan_ix(state, state.players.n_kan.sum())]
+    rinshan_tile = state.round_state.deck[_rinshan_ix(state, _replacements_drawn(state))]
     # Apply KAN action to hand, meld, river
     is_open_kan = action == Action.OPEN_KAN
     pon = state.players.pon[(c_p, Tile.to_tile_type(tile))]
@@ -1469,8 +1493,10 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
     """
     config = _resolve_game_config(game_config)
     c_p = state.current_player
-    # If the player who declared the KAN passes, set the next player from the legal action
+    # Passing on a robbable kan, or on a kita's north, gives the turn back to its player.
     can_robbing_kan = state.round_state.kan_declared
+    if state.constants.HAS_KITA:
+        can_robbing_kan = can_robbing_kan | state.round_state.kita_declared
     is_ron_player = jnp.bool_(state.players.legal_action_mask[c_p, Action.RON])
     # Letting a RON go makes the player furiten until their next turn, whatever follows.
     state = _replace_state(
@@ -1693,6 +1719,7 @@ def _settle_ron(state: State) -> State:
         legal_action_mask=state.constants.ZERO_MASK_2D.at[:, Action.DUMMY].set(TRUE),
         kan_declared=FALSE,
         draw_next=FALSE,
+        **({"kita_declared": FALSE} if state.constants.HAS_KITA else {}),  # a ronned north draws no replacement
     )
 
 
@@ -1755,13 +1782,12 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
     )
     num_players = state.constants.NUM_PLAYERS
     honba = state.round_state.honba * state.constants.HONBA_PER_PAYER
-    score = _win_score(basic_score, _dealer == c_p)
     normal_reward = _tsumo_payments(c_p, _dealer, basic_score, honba, num_players)
     is_pao, pao_player = _pao(state, c_p)
-    # The liable player pays it all, honba included.
+    # The liable player pays all the tsumo collects, honba included.
     pao_reward = jnp.zeros(num_players, dtype=jnp.float32)
-    pao_reward = pao_reward.at[c_p].set(score + (num_players - 1) * honba)
-    pao_reward = pao_reward.at[pao_player].set(-score - (num_players - 1) * honba)
+    pao_reward = pao_reward.at[c_p].set(normal_reward[c_p])
+    pao_reward = pao_reward.at[pao_player].set(-normal_reward[c_p])
     reward = jnp.where(config.enable_pao & is_pao, pao_reward, normal_reward)
     # The Kyotaku is already paid when the RIICHI is declared, so we only need to add the Kyotaku to the winner
     kyotaku_bonus = state.constants.RIICHI_BET_SCORE * state.round_state.kyotaku.astype(jnp.int32)  # int8 wraps at 13 sticks

@@ -27,6 +27,8 @@ FALSE = jnp.bool_(False)
 EnvId = Literal[
     "no_red_4p",
     "red_4p",
+    "no_red_3p",
+    "red_3p",
 ]
 
 
@@ -244,7 +246,7 @@ def available_envs() -> Tuple[EnvId, ...]:
 
         ```py
         mahjax.available_envs()
-        ('no_red_4p', 'red_4p')
+        ('no_red_4p', 'red_4p', 'no_red_3p', 'red_3p')
         ```
     """
     games = get_args(EnvId)
@@ -265,15 +267,16 @@ def make(env_id: EnvId, **kwargs):  # noqa: C901
         )
         ```
     """
-    from mahjax.mahjong_4p.config import NO_RED
+    from mahjax.mahjong_3p.env import Mahjong3p
     from mahjax.mahjong_4p.env import Mahjong4p
 
-    if env_id == "no_red_4p":
-        # red_4p with every optional rule off: no red fives, no double ron,
+    if env_id in ("no_red_4p", "red_4p", "no_red_3p", "red_3p"):
+        env_cls = Mahjong4p if env_id.endswith("_4p") else Mahjong3p
+        # no_red_* is red_* with every optional rule off: no red fives, no double ron,
         # no pao and no special abortive draws.
-        return Mahjong4p(game_config=NO_RED, **kwargs)
-    elif env_id == "red_4p":
-        return Mahjong4p(**kwargs)
+        if env_id.startswith("no_red_"):
+            return env_cls(game_config=env_cls.NO_RED, **kwargs)
+        return env_cls(**kwargs)
     else:
         raise ValueError(
             f"Wrong env_id '{env_id}' is passed. Available ids are: \n{available_envs()}"

@@ -139,8 +139,9 @@ Currently, MahJax supports the following rules:
 |------|------|--------|------|--------|
 | No-Red Mahjong | `no_red_4p` | ✅ | [mahjong_4p](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjong_4p) with `NO_RED` | ≈ `red_4p` |
 | Red Mahjong | `red_4p` | ✅ | [mahjong_4p](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjong_4p) | ~1M |
+| No-Red Mahjong (3-player) | `no_red_3p` | ✅ | [mahjong_3p](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjong_3p) with `NO_RED` | - |
+| Red Mahjong (3-player) | `red_3p` | ✅ | [mahjong_3p](https://github.com/nissymori/mahjax/tree/main/mahjax/mahjong_3p) | - |
 | Selective Rules | - | 🚧 | - | - |
-| 3-player Mahjong | - | 🚧 | - | - |
 
 `red_4p` implements standard 4-player riichi mahjong with red fives.
 Its rules are designed to follow [Tenhou](https://tenhou.net/), one of the most widely used online mahjong platforms in Japan, and we validate the implementation against downloaded Tenhou game logs.
@@ -149,9 +150,12 @@ For the detailed rule specification, see the [official Tenhou rules](https://ten
 `no_red_4p` is `red_4p` with the `NO_RED` rule preset: no red fives, no double ron, no pao and no special abortive draws (`特殊流局`).
 It runs on the same engine and has the same observation and action space as `red_4p`.
 
+`red_3p` is 3-player riichi mahjong (三人麻雀) with red fives, following Tenhou's 3-player rules: no 2m–8m, no chi, and norths set aside as dora (北抜き).
+`no_red_3p` is `red_3p` with the `NO_RED` preset. See [3-Player Mahjong](https://nissymori.github.io/mahjax/mahjong_3p/) for the details.
+
 You can configure the environment with:
 
-- `id`: the rule set, such as `red_4p` or `no_red_4p`
+- `id`: the rule set: `red_4p`, `no_red_4p`, `red_3p` or `no_red_3p`
 - `round_mode`: `single` for a single round, `east` for tonpuusen (East-only), or `half` for hanchan (East-South)
 - `observe_type`: `dict` for transformer-style inputs or `2D` for CNN-style inputs
 - `order_points`: final placement bonuses (uma), in hundreds of points like `score`. Defaults to no uma; pass `[300, 100, -100, -300]` for 10-30 uma

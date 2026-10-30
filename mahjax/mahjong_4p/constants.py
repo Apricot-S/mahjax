@@ -13,6 +13,10 @@ NUM_PHYSICAL_TILES: Final[int] = 136
 TILE_IDS = jnp.arange(NUM_PHYSICAL_TILES, dtype=jnp.int32)
 
 HAS_CHI: Final[bool] = True
+HAS_KITA: Final[bool] = False
+# Special abortive draws that need four players.
+HAS_FOUR_WIND_DRAW: Final[bool] = True
+HAS_FOUR_RIICHI_DRAW: Final[bool] = True
 
 MAX_DISCARDS_PER_PLAYER: Final[int] = 24
 MAX_DORA_INDICATORS: Final[int] = 5

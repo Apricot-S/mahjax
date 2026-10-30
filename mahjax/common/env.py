@@ -22,7 +22,8 @@ import jax.numpy as jnp
 from mahjax._src.types import Array, PRNGKey
 from mahjax.common.config import GameConfig
 from mahjax.common.constants import TRUE
-from mahjax.common.logic import _init, _replace_state, _start_next_round_or_end_game, _step
+from mahjax.common import logic as common_logic
+from mahjax.common.logic import _init, _replace_state, _start_next_round_or_end_game
 from mahjax.core import Env
 
 # Any game's state; its ``constants`` set the table.
@@ -35,6 +36,7 @@ class MahjongEnv(Env):
 
     State: ClassVar[type]
     observation: ClassVar[ModuleType]
+    logic: ClassVar[ModuleType] = common_logic  # its ``_step`` plays an action
     RED: ClassVar[GameConfig]
     NO_RED: ClassVar[GameConfig]
     ID_SUFFIX: ClassVar[str]  # "4p" makes the ids "red_4p" and "no_red_4p"
@@ -112,7 +114,7 @@ class MahjongEnv(Env):
 
 
         stepped_state = _replace_state(
-            _step(state, action, key, self.game_config, self.round_end),
+            self.logic._step(state, action, key, self.game_config, self.round_end),
             step_count=state.step_count + 1,
         )
         state = jax.lax.cond(

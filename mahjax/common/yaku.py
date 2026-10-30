@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 import importlib.resources as resources
 
 import jax
@@ -22,6 +22,7 @@ def load_yaku_cache() -> jnp.ndarray:
 
 
 WIND_TILE = jnp.array([27, 28, 29, 30], dtype=jnp.int8)
+_NORTH = 30
 OUTSIDE_TILE = jnp.array([0, 8, 9, 17, 18, 26], dtype=jnp.int8)
 TANYAO_TILE = jnp.array(
     [1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25],
@@ -380,6 +381,7 @@ class Yaku:
         seat_wind: Array,
         dora: Array,
         use_red_fives: Array = jnp.bool_(True),
+        kita: Optional[Array] = None,
     ) -> Tuple[Array, Array, Array]:
         hand = Hand.add(hand, last_tile)
         red_fan = jnp.int32(0)
@@ -588,6 +590,9 @@ class Yaku:
 
         def _ret_normal() -> Tuple[Array, Array, Array]:
             fan_val = jnp.dot(_Internal.FAN[jnp.where(is_hand_concealed, 1, 0)], yaku_best.astype(jnp.int32)) + jnp.dot(flatten, dora) + red_fan
+            if kita is not None:
+                # Each north set aside is a dora, and one more if the north is a dora too.
+                fan_val = fan_val + jnp.int32(kita) * (1 + dora[_NORTH])
             return yaku_best, fan_val.astype(jnp.int32), fu_best.astype(jnp.int32)
 
         return jax.lax.cond(jnp.any(yakuman), _ret_yakuman, _ret_normal)
@@ -609,6 +614,7 @@ class Yaku:
         prevalent_wind = jnp.int32(rs.round_state.round // rs.round_state.seat_wind.shape[0])
         seat_wind = jnp.int32(rs.round_state.seat_wind[p])
         dora = _dora_array_from_state(rs)
+        kita = rs.players.kita[p] if rs.constants.HAS_KITA else None
         return Yaku.judge_hand_related(
             hand=hand,
             melds=melds,
@@ -620,6 +626,7 @@ class Yaku:
             seat_wind=seat_wind,
             dora=dora,
             use_red_fives=use_red_fives,
+            kita=kita,
         )
 
     @staticmethod
