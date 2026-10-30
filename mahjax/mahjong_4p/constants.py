@@ -25,6 +25,7 @@ NO_WINNER_NORMAL: Final[int] = 1
 # ``score`` is in units of 100 points, ``TARGET_POINTS`` in points.
 TARGET_SCORE: Final[int] = TARGET_POINTS // 100
 RIICHI_BET_SCORE: Final[int] = RIICHI_BET // 100
+HONBA_SCORE: Final[int] = HONBA_BONUS // 100
 # The noten players of an exhaustive draw pay 3000 points between them, in score units.
 NOTEN_PENALTY_SCORE: Final[int] = 30
 # Riichi needs at least this many live-wall draws left after the declarer's.

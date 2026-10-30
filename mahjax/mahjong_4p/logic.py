@@ -33,6 +33,7 @@ from .constants import (
     FALSE,
     FIRST_DORA_INDICATOR_IX,
     FIRST_DRAW_IDX,
+    HONBA_SCORE,
     MAX_DORA_INDICATORS,
     MIN_LIVE_DRAWS_FOR_RIICHI,
     NOTEN_PENALTY_SCORE,
@@ -75,6 +76,9 @@ ACTION_KIND = ACTION_KIND.at[Action.DUMMY].set(9)
 # drawn) and the tsumo on the tile the next draw will bring.
 CURRENT_TILE = 0
 NEXT_DRAW = 1
+
+# A honba is ``HONBA_SCORE`` from the discarder on a ron, shared by the payers on a tsumo.
+_HONBA_PER_PAYER = HONBA_SCORE // (NUM_PLAYERS - 1)
 
 _PLAYER_FIELDS = frozenset(field.name for field in dataclasses.fields(PlayerStateArrays))
 _ROUND_FIELDS = frozenset(field.name for field in dataclasses.fields(RoundState))
@@ -1594,25 +1598,22 @@ def _ron(state: State, game_config: Optional[GameConfig] = None) -> State:
         ),  # When Yakuman, do not add ippatsu, double riichi, robbing_kan, houtei
         state.players.fu[c_p, CURRENT_TILE],
     )
-    score = jnp.where(state.round_state.dealer == c_p, basic_score * 6, basic_score * 4)
-    # Round up the score to the nearest multiple of 100
-    score = jnp.ceil(score / 100)
+    score = _win_score(basic_score, state.round_state.dealer == c_p)
     # In double-ron, honba and kyotaku are paid only once on the first ron.
     is_first_ron = ~state.pending_winners.any()
-    honba = jnp.where(is_first_ron, state.round_state.honba * 3, 0)
-    # Build reward array more efficiently
-    normal_reward = jnp.zeros(4, dtype=jnp.float32)
+    honba = jnp.where(is_first_ron, state.round_state.honba * HONBA_SCORE, 0)
+    normal_reward = jnp.zeros(NUM_PLAYERS, dtype=jnp.float32)
     normal_reward = normal_reward.at[c_p].set(score + honba)
     normal_reward = normal_reward.at[state.round_state.last_player].set(-score - honba)
     is_pao, pao_player = _pao(state, c_p)
-    pao_reward = jnp.zeros(4, dtype=jnp.float32)
+    pao_reward = jnp.zeros(NUM_PLAYERS, dtype=jnp.float32)
     pao_reward = pao_reward.at[c_p].set(score + honba)
     # The points are split with the discarder, but the honba is the liable player's alone.
     pao_reward = pao_reward.at[pao_player].add(-score / 2 - honba)
     pao_reward = pao_reward.at[state.round_state.last_player].add(-score / 2)
     reward = jnp.where(config.enable_pao & is_pao, pao_reward, normal_reward)
     # The Kyotaku is already paid when the RIICHI is declared, so we only need to add the Kyotaku to the winner
-    kyotaku_bonus = 10 * state.round_state.kyotaku.astype(jnp.int32) * is_first_ron  # int8 wraps at 13 sticks
+    kyotaku_bonus = RIICHI_BET_SCORE * state.round_state.kyotaku.astype(jnp.int32) * is_first_ron  # int8 wraps at 13 sticks
     reward = reward.at[c_p].add(kyotaku_bonus)
     # Nothing is paid, recorded or cleared off the table until everyone who can
     # ron this tile has answered: the ones still to answer must not learn how the
@@ -1677,7 +1678,7 @@ def _settle_ron(state: State) -> State:
     """
     winners = state.pending_winners
     # The winner ``_next_ron_player`` asked last, i.e. the farthest from the discarder.
-    distance = (jnp.arange(4) - state.round_state.last_player) % 4
+    distance = _seats_after(jnp.arange(NUM_PLAYERS), state.round_state.last_player)
     last_winner = jnp.argmax(jnp.where(winners, distance, -1))
     return _replace_state(
         _record_rons(state, winners),
@@ -1697,8 +1698,8 @@ def _settle_ron(state: State) -> State:
 
 def _record_rons(state: State, winners: Array) -> State:
     """Record a RON for each of ``winners``, in the order ``_next_ron_player`` asked them."""
-    for distance in range(4):
-        seat = (state.round_state.last_player + distance) % 4
+    for distance in range(NUM_PLAYERS):
+        seat = (state.round_state.last_player + distance) % NUM_PLAYERS
         state = _write_action_history(state, seat, jnp.int32(Action.RON), winners[seat])
     return state
 
@@ -1751,38 +1752,19 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
         jnp.int32(fan),  # Calculate the score when the tile is discarded
         jnp.int32(fu),
     )
-    honba = state.round_state.honba * 1  # 1 Honba is 100 points (per player)
-    s1 = jnp.ceil(basic_score / 100)
-    s2 = jnp.ceil(basic_score * 2 / 100)
-    score = jnp.where(_dealer == c_p, basic_score * 6, basic_score * 4)
-    score = jnp.ceil(score / 100)
-    # Build reward array more efficiently
-    normal_reward = jnp.where(
-        _dealer == c_p,
-        # If c_p is dealer
-        jnp.full(4, -s2 - honba, dtype=jnp.float32),
-        # If c_p is not dealer
-        jnp.full(4, -s1 - honba, dtype=jnp.float32),
-    )
-    # Update specific positions based on dealer condition
-    normal_reward = jnp.where(
-        _dealer == c_p,
-        normal_reward.at[c_p].set(s2 * 3 + 3 * honba),  # The dealer pays the score
-        normal_reward.at[_dealer]
-        .set(-s2 - honba)
-        .at[c_p]
-        .set(s1 * 2 + s2 + 3 * honba),  # The non-dealer pays the score
-    )
+    honba = state.round_state.honba * _HONBA_PER_PAYER
+    score = _win_score(basic_score, _dealer == c_p)
+    normal_reward = _tsumo_payments(c_p, _dealer, basic_score, honba)
     is_pao, pao_player = _pao(state, c_p)
-    pao_reward = jnp.zeros(4, dtype=jnp.float32)
-    pao_reward = pao_reward.at[c_p].set(score + 3 * honba)
-    pao_reward = pao_reward.at[pao_player].set(-score - 3 * honba)
+    # The liable player pays it all, honba included.
+    pao_reward = jnp.zeros(NUM_PLAYERS, dtype=jnp.float32)
+    pao_reward = pao_reward.at[c_p].set(score + (NUM_PLAYERS - 1) * honba)
+    pao_reward = pao_reward.at[pao_player].set(-score - (NUM_PLAYERS - 1) * honba)
     reward = jnp.where(config.enable_pao & is_pao, pao_reward, normal_reward)
     # The Kyotaku is already paid when the RIICHI is declared, so we only need to add the Kyotaku to the winner
-    kyotaku_bonus = 10 * state.round_state.kyotaku.astype(jnp.int32)  # int8 wraps at 13 sticks
+    kyotaku_bonus = RIICHI_BET_SCORE * state.round_state.kyotaku.astype(jnp.int32)  # int8 wraps at 13 sticks
     reward = reward.at[c_p].add(kyotaku_bonus)
     score = state.round_state.score + reward
-    reward = reward
     return _replace_state(state,   # type:ignore
         terminated_round=TRUE,
         rewards=jnp.float32(reward),
@@ -1891,24 +1873,35 @@ def _pao(state: State, winner: Array) -> Tuple[Array, Array]:
     relevant_idx = jnp.where(relevant, jnp.arange(melds.shape[0], dtype=jnp.int32), -1)
     last_idx = jnp.max(relevant_idx)
     is_pao = last_idx >= 0
-    pao_player = jnp.where(is_pao, (winner + srcs[last_idx]) % 4, jnp.int32(0))
+    pao_player = jnp.where(is_pao, (winner + srcs[last_idx]) % NUM_PLAYERS, jnp.int32(0))
     return is_pao, pao_player
 
 
-def _mangan_tsumo(winner: Array, dealer: Array, honba: Array) -> Array:
-    basic_score = Yaku.score(jnp.int32(5), jnp.int32(30))
-    honba_payment = honba * 1
-    s1 = jnp.ceil(basic_score / 100) + honba_payment
-    s2 = jnp.ceil(basic_score * 2 / 100) + honba_payment
+def _win_score(basic_score: Array, is_dealer: Array) -> Array:
+    """A win's value in score units (100 points), rounded up: six times the basic points
+    for the dealer and four times for anyone else."""
+    return jnp.ceil(jnp.where(is_dealer, basic_score * 6, basic_score * 4) / 100)
+
+
+def _tsumo_payments(winner: Array, dealer: Array, basic_score: Array, honba: Array) -> Array:
+    """Every player's share of a tsumo, in score units: the dealer pays twice the basic
+    points and everyone else once, each rounded up to 100, and each payer adds ``honba``."""
+    s1 = jnp.ceil(basic_score / 100)
+    s2 = jnp.ceil(basic_score * 2 / 100)
+    payers = NUM_PLAYERS - 1
     return jnp.where(
         dealer == winner,
-        jnp.full(4, -s2, dtype=jnp.float32).at[winner].set(s2 * 3),
-        jnp.full(4, -s1, dtype=jnp.float32)
+        jnp.full(NUM_PLAYERS, -s2 - honba, dtype=jnp.float32).at[winner].set(s2 * payers + payers * honba),
+        jnp.full(NUM_PLAYERS, -s1 - honba, dtype=jnp.float32)
         .at[dealer]
-        .set(-s2)
+        .set(-s2 - honba)
         .at[winner]
-        .set(s1 * 2 + s2),
+        .set(s1 * (payers - 1) + s2 + payers * honba),
     )
+
+
+def _mangan_tsumo(winner: Array, dealer: Array, honba: Array) -> Array:
+    return _tsumo_payments(winner, dealer, Yaku.score(jnp.int32(5), jnp.int32(30)), honba * _HONBA_PER_PAYER)
 
 
 def _rank_order(round_state) -> Array:
