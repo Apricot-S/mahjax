@@ -754,7 +754,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     legal_action_mask_4p = jax.vmap(
         _mask_after_discard, in_axes=(None, 0, 0, None)
     )(
-        state, state.players.hand_with_red, jnp.arange(4), tile
+        state, state.players.hand_with_red, jnp.arange(NUM_PLAYERS), tile
     )
     legal_action_mask_4p = legal_action_mask_4p.at[c_p, :].set(
         FALSE
@@ -800,7 +800,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
         lambda: jax.lax.cond(
             no_meld_player | (is_abortive_draw_normal & no_ron_player),
             lambda: _replace_state(state,   # type:ignore
-                current_player=jnp.int8((c_p + 1) % 4),
+                current_player=jnp.int8(_next_seat(c_p)),
                 last_player=jnp.int8(c_p),
                 target=jnp.int8(-1),
                 draw_next=TRUE,
@@ -836,12 +836,11 @@ def _mask_after_discard(
     haitei = state.round_state.is_haitei | _live_wall_is_empty(state)
     riichi = state.players.riichi[c_p]
     discarder = state.current_player
-    src = (discarder - c_p) % 4
+    src = _seats_after(discarder, c_p)
     cannot_meld = riichi | haitei
     cannot_kan = _kan_limit_reached(state)
-    chi_mask = (
-        _mask_for_chi(hand, tile) & ~cannot_meld & (src == 3)
-    )  # Cannot play CHI from the player who is not the upper player
+    # CHI only from the player on the left, who discards just before.
+    chi_mask = _mask_for_chi(hand, tile) & ~cannot_meld & (src == NUM_PLAYERS - 1)
     pm_mask = _mask_for_pon_open_kan(hand, tile, cannot_kan) & ~cannot_meld
     can_ron = state.players.can_win[c_p, Tile.to_tile_type(tile)]
     has_yaku = state.players.has_yaku[c_p, CURRENT_TILE]
@@ -902,6 +901,17 @@ def _mask_for_pon_open_kan(hand: Array, tile: Array, cannot_kan: Array) -> Array
     return legal_action_mask
 
 
+def _seats_after(players: Array, player: Array) -> Array:
+    """How many seats after ``player`` each of ``players`` sits, in turn order. As a meld's
+    ``src``, it says where the claimed tile came from: ``NUM_PLAYERS - 1`` is the left."""
+    return (players - player) % NUM_PLAYERS
+
+
+def _next_seat(player: Array) -> Array:
+    """The player whose turn comes after ``player``'s."""
+    return (player + 1) % NUM_PLAYERS
+
+
 def _next_ron_player(legal_action_mask_4p: Array, discarded_player: Array) -> Array:
     """
     - Check if the player can play RON with the target tile
@@ -916,7 +926,7 @@ def _next_ron_player(legal_action_mask_4p: Array, discarded_player: Array) -> Ar
     )  # Whether each player can play RON
     can_any_ron = can_ron.any()
     # Calculate the distance from the discarded player and prioritize the player who is closest to the discarded player
-    distance = (jnp.arange(4) - discarded_player) % 4
+    distance = _seats_after(jnp.arange(NUM_PLAYERS), discarded_player)
     distance = jnp.where(can_ron, distance, jnp.inf)
     idx = jnp.argmin(distance)
     return idx, can_any_ron
@@ -950,7 +960,7 @@ def _next_meld_player(legal_action_mask_4p: Array, discarded_player: Array) -> A
 
     # If multiple players can play RON, prioritize the player who is the closest to the discarded player
     def ron_case():
-        distance = (jnp.arange(4) - discarded_player) % 4
+        distance = _seats_after(jnp.arange(NUM_PLAYERS), discarded_player)
         # Set the distance of the players who cannot play RON to infinity
         distance = jnp.where(can_ron, distance, jnp.inf)
         return jnp.argmin(distance)
@@ -967,7 +977,7 @@ def _claims_open_to(legal_action_mask_4p: Array, player: Array) -> Array:
     - A player who can RON answers RON or PASS before any call of their own, whoever else can claim the tile
     - A waiting call stays in ``legal_action_mask_4p`` and is offered once the claims above it are passed
     """
-    others = jnp.arange(4) != player
+    others = jnp.arange(NUM_PLAYERS) != player
     other_ron = (legal_action_mask_4p[:, Action.RON] & others).any()
     other_pon = (legal_action_mask_4p[:, Action.PON : Action.OPEN_KAN + 1].any(axis=1) & others).any()
     mask = legal_action_mask_4p[player]
@@ -1339,7 +1349,7 @@ def _open_kan(state: State, game_config: Optional[GameConfig] = None):
     l_p = state.round_state.last_player
     state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
-    src = (l_p - c_p) % 4
+    src = _seats_after(l_p, c_p)
     meld = Meld.init(Action.OPEN_KAN, state.round_state.target, src)
     state = _append_meld(state, meld, c_p)
     hand_with_red_row = Hand.open_kan(state.players.hand_with_red[c_p], state.round_state.target)
@@ -1368,7 +1378,7 @@ def _pon(state: State, action: Array, game_config: Optional[GameConfig] = None):
     tar = state.round_state.target
     state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
-    src = (l_p - c_p) % 4
+    src = _seats_after(l_p, c_p)
     meld = Meld.init(action, tar, src)
     state = _append_meld(state, meld, c_p)
     pon_hand = Hand.pon(state.players.hand_with_red[c_p], tar, action)
@@ -1408,7 +1418,7 @@ def _chi(state: State, action: Array, game_config: Optional[GameConfig] = None):
     tar = state.round_state.target
     state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
-    meld = Meld.init(action, tar, src=jnp.int32(3))
+    meld = Meld.init(action, tar, src=jnp.int32(NUM_PLAYERS - 1))  # from the left
     state = _append_meld(state, meld, c_p)
     chi_hand = Hand.chi(state.players.hand_with_red[c_p], tar, action)
     hand_with_red = state.players.hand_with_red.at[c_p].set(chi_hand)
@@ -1420,7 +1430,7 @@ def _chi(state: State, action: Array, game_config: Optional[GameConfig] = None):
     )
     # Add the meld to the river
     river = River.add_meld(
-        state.players.river, action, tar_p, state.players.discard_counts[tar_p] - 1, jnp.int32(3)
+        state.players.river, action, tar_p, state.players.discard_counts[tar_p] - 1, jnp.int32(NUM_PLAYERS - 1)
     )
     state = _replace_state(state,   # type:ignore
         target=jnp.int8(-1),
@@ -1505,7 +1515,7 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
                 current_player=jnp.where(
                     can_robbing_kan,
                     jnp.int8(state.round_state.last_player),
-                    jnp.int8((state.round_state.last_player + 1) % 4),
+                    jnp.int8(_next_seat(state.round_state.last_player)),
                 ),
                 target=jnp.int8(-1),
                 draw_next=TRUE & ~can_robbing_kan,
