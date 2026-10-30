@@ -35,6 +35,7 @@ from .constants import (
     FIRST_DRAW_IDX,
     MAX_DORA_INDICATORS,
     MIN_LIVE_DRAWS_FOR_RIICHI,
+    NOTEN_PENALTY_SCORE,
     NUM_PHYSICAL_TILES,
     NUM_PLAYERS,
     RIICHI_BET_SCORE,
@@ -1793,31 +1794,13 @@ def _abortive_draw_normal(state: State) -> State:
     - Clear the Kyotaku
     - Check if the game is ended (abortive_draw_normal (流局))
     """
-    # Normal Draw (流局)
-    tenpai = state.players.can_win.any(axis=-1)  # (4,)
-    n_tenpai = tenpai.sum()
-    n_not_tenpai = 4 - n_tenpai
-    rewards = jnp.zeros(4, dtype=jnp.int32)
-    total_rewards = 30
-    normal_rewards = jnp.where(
-        tenpai, total_rewards // n_tenpai, -total_rewards // n_not_tenpai
+    # Normal Draw (流局): a nagashi mangan replaces the noten payments.
+    tenpai = state.players.can_win.any(axis=-1)
+    rewards = jnp.where(
+        state.players.has_nagashi_mangan.any(),
+        _nagashi_mangan_payments(state).astype(jnp.int32),
+        _noten_payments(tenpai),
     )
-    normal_rewards = jnp.where(
-        jnp.logical_or(n_tenpai == 0, n_tenpai == 4),
-        jnp.zeros(4, dtype=jnp.int32),
-        normal_rewards,
-    )
-    is_nagashi = state.players.has_nagashi_mangan
-    has_nagashi = is_nagashi.any()
-    nagashi_rewards = (
-        jax.vmap(_mangan_tsumo, in_axes=(0, None, None))(
-            jnp.arange(4, dtype=jnp.int32),
-            state.round_state.dealer,
-            jnp.int8(0),
-        )
-        * is_nagashi[:, None]
-    ).sum(axis=0)
-    rewards = jnp.where(has_nagashi, nagashi_rewards.astype(jnp.int32), normal_rewards)
     return _replace_state(state,   # type:ignore
         rewards=rewards.astype(jnp.float32),
         score=jnp.int32(state.round_state.score + jnp.float32(rewards)),  # Update the score
@@ -1827,6 +1810,33 @@ def _abortive_draw_normal(state: State) -> State:
         terminated_round=TRUE,
         draw_next=FALSE,
     )
+
+
+def _noten_payments(tenpai: Array) -> Array:
+    """Each player's noten payment in an exhaustive draw, shaped (NUM_PLAYERS,): the noten
+    players pay ``NOTEN_PENALTY_SCORE`` between them to the tenpai players. Nothing moves
+    when everyone or nobody is tenpai."""
+    n_tenpai = tenpai.sum()
+    n_not_tenpai = NUM_PLAYERS - n_tenpai
+    payments = jnp.where(tenpai, NOTEN_PENALTY_SCORE // n_tenpai, -NOTEN_PENALTY_SCORE // n_not_tenpai)
+    return jnp.where(
+        jnp.logical_or(n_tenpai == 0, n_tenpai == NUM_PLAYERS),
+        jnp.zeros(NUM_PLAYERS, dtype=jnp.int32),
+        payments,
+    )
+
+
+def _nagashi_mangan_payments(state: State) -> Array:
+    """Every nagashi mangan (流し満貫) is paid as a mangan tsumo without honba; the
+    payments are summed per player."""
+    return (
+        jax.vmap(_mangan_tsumo, in_axes=(0, None, None))(
+            jnp.arange(NUM_PLAYERS, dtype=jnp.int32),
+            state.round_state.dealer,
+            jnp.int8(0),
+        )
+        * state.players.has_nagashi_mangan[:, None]
+    ).sum(axis=0)
 
 
 def _special_next_round(
