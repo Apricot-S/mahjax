@@ -9,6 +9,10 @@ from mahjax.common.constants import FALSE, INITIAL_HAND_TILES, TRUE  # noqa: F40
 
 NUM_PLAYERS: Final[int] = 4
 NUM_PHYSICAL_TILES: Final[int] = 136
+# The tile ids the wall is shuffled from: all 136.
+TILE_IDS = jnp.arange(NUM_PHYSICAL_TILES, dtype=jnp.int32)
+
+HAS_CHI: Final[bool] = True
 
 MAX_DISCARDS_PER_PLAYER: Final[int] = 24
 MAX_DORA_INDICATORS: Final[int] = 5
@@ -47,3 +51,44 @@ ZERO_MASK_2D = jnp.zeros((NUM_PLAYERS, Action.NUM_ACTION), dtype=jnp.bool_)
 FIRST_DRAW_IDX = NUM_PHYSICAL_TILES - 1 - INITIAL_HAND_TILES * NUM_PLAYERS
 RINSHAN_IX: Final[int] = 10
 FIRST_DORA_INDICATOR_IX: Final[int] = 9
+
+# The dora each indicator points at, by tile type.
+DORA_ARRAY = jnp.array(
+    [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        0,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        9,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        18,
+        28,
+        29,
+        30,
+        27,
+        32,
+        33,
+        31,
+    ],
+    dtype=jnp.int8,
+)
