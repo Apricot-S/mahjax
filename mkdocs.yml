@@ -16,6 +16,7 @@ nav:
   - Available Games:
       - No-Red Mahjong: no_red_mahjong.md
       - Red Mahjong: red_mahjong.md
+      - 3-Player Mahjong: mahjong_3p.md
   - API:
       - Reference: api.md
   - GitHub: https://github.com/nissymori/mahjax
