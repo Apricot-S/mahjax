@@ -4,10 +4,19 @@ import jax
 import jax.numpy as jnp
 
 from mahjax.common.action import Action
+from mahjax.common.config import GameConfig
 from mahjax.common.hand import Hand
 from mahjax.common.meld import Meld
 from mahjax.common.tile import Tile
-from mahjax.mahjong_4p.logic import _draw_rinshan, _init, _kan, _replace_state, _step
+from mahjax.mahjong_4p.logic import (
+    _draw_rinshan,
+    _init,
+    _kan,
+    _prepare_next_round_assets,
+    _replace_state,
+    _step,
+    _turn_over_kan_dora,
+)
 from mahjax.mahjong_4p.state import default_state
 
 from ..helpers import STEP_KEY, _post_ankan_state, compiled_env
@@ -484,3 +493,29 @@ def test_red_robbing_kan_on_a_red_five_keeps_the_red_dora() -> None:
     assert black_target == five_p
     assert red_target == red_five_p
     assert red_fan == black_fan + 1
+
+
+def test_kan_dora_off_keeps_the_indicator_face_down() -> None:
+    state = _init(jax.random.PRNGKey(0))
+    on = _turn_over_kan_dora(state)
+    off = _turn_over_kan_dora(state, GameConfig(enable_kan_dora=False))
+    assert int(on.round_state.dora_indicators[1]) == int(state.round_state.deck[7])
+    assert int(on.round_state.ura_dora_indicators[1]) == int(state.round_state.deck[6])
+    assert bool(jnp.all(off.round_state.dora_indicators == state.round_state.dora_indicators))
+    assert bool(jnp.all(off.round_state.ura_dora_indicators == state.round_state.ura_dora_indicators))
+    # The kan still counts, so the dead wall moves on as usual.
+    assert int(off.round_state.n_kan_doras) == int(on.round_state.n_kan_doras) == int(state.round_state.n_kan_doras) + 1
+
+
+def test_ura_dora_off_deals_and_turns_over_no_ura() -> None:
+    config = GameConfig(enable_ura_dora=False)
+    key = jax.random.PRNGKey(0)
+    deck, dora, ura, _, _ = _prepare_next_round_assets(key, config)
+    deck_on, dora_on, ura_on, _, _ = _prepare_next_round_assets(key)
+    assert bool(jnp.all(deck == deck_on)) and bool(jnp.all(dora == dora_on))
+    assert int(ura_on[0]) == int(deck[8])
+    assert bool(jnp.all(ura == -1))
+    state = _init(key, config)
+    kanned = _turn_over_kan_dora(state, config)
+    assert int(kanned.round_state.dora_indicators[1]) == int(state.round_state.deck[7])
+    assert bool(jnp.all(kanned.round_state.ura_dora_indicators == -1))

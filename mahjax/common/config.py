@@ -16,6 +16,8 @@ class GameConfig:
     enable_special_abortive_draw: bool = True
     enable_pao: bool = True
     enable_ippatsu: bool = True
+    enable_kan_dora: bool = True
+    enable_ura_dora: bool = True
 
     def __post_init__(self) -> None:
         for field in dataclasses.fields(self):

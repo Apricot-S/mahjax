@@ -51,8 +51,10 @@ The rule behavior is controlled through `GameConfig`, a frozen dataclass of Pyth
 | `enable_special_abortive_draw` | `True` | Enable 九種九牌 / 四風連打 / 四家立直 / 三家和 / 四開槓. |
 | `enable_pao` | `True` | Enable 包 (responsibility payment) for 大三元 / 大四喜. |
 | `enable_ippatsu` | `True` | Award 一発 (ippatsu) to a riichi that wins within one go-around, with no call in between. |
+| `enable_kan_dora` | `True` | Turn over a new dora indicator for each kan (槓ドラ). |
+| `enable_ura_dora` | `True` | Count 裏ドラ for a riichi winner, including the kan dora's ura when kan dora is on. |
 
-Two presets are provided: `RED` (the default) turns every rule above on, and `NO_RED` turns off the first four, keeping ippatsu. Other combinations are built field by field, e.g. `GameConfig(enable_pao=False)`, and `dataclasses.asdict(env.game_config)` records the rules of a run.
+Two presets are provided: `RED` (the default) turns every rule above on, and `NO_RED` turns off the first four and keeps the rest. Other combinations are built field by field, e.g. `GameConfig(enable_pao=False)`, and `dataclasses.asdict(env.game_config)` records the rules of a run.
 
 ## State
 

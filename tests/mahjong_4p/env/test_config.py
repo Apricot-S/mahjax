@@ -21,6 +21,8 @@ def test_presets_set_every_rule() -> None:
         "enable_special_abortive_draw": True,
         "enable_pao": True,
         "enable_ippatsu": True,
+        "enable_kan_dora": True,
+        "enable_ura_dora": True,
     }
     assert dataclasses.asdict(NO_RED) == {
         "use_red_fives": False,
@@ -28,6 +30,8 @@ def test_presets_set_every_rule() -> None:
         "enable_special_abortive_draw": False,
         "enable_pao": False,
         "enable_ippatsu": True,
+        "enable_kan_dora": True,
+        "enable_ura_dora": True,
     }
 
 
