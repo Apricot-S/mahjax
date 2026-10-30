@@ -5,10 +5,10 @@ import jax.numpy as jnp
 
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
+from mahjax.common.logic import _abortive_draw_normal, _mangan_tsumo, _pao, _pass, _ron
 from mahjax.common.meld import Meld
 from mahjax.common.tile import Tile
 from mahjax.common.yaku import Yaku
-from mahjax.mahjong_4p.logic import _abortive_draw_normal, _mangan_tsumo, _pao, _pass, _ron
 from mahjax.mahjong_4p.state import default_state
 
 from ..helpers import STEP_KEY, compiled_env
@@ -194,7 +194,7 @@ def test_pao_survives_an_added_kan() -> None:
 
 def test_red_thirteen_riichi_sticks_do_not_wrap_negative() -> None:
     """13 sticks are +13000 points; multiplying the int8 ``kyotaku`` wrapped them."""
-    from mahjax.mahjong_4p import logic as m
+    from mahjax.common import logic as m
 
     base = default_state()
     state = m._replace_state(
@@ -215,7 +215,7 @@ def test_red_thirteen_riichi_sticks_do_not_wrap_negative() -> None:
 
 def test_red_limit_hand_rons_pay_the_limit() -> None:
     """3 fan 70 fu is a mangan and 23 fan 100 fu a counted yakuman, not an int32 overflow."""
-    from mahjax.mahjong_4p import logic as m
+    from mahjax.common import logic as m
 
     base = default_state()
     for fan, fu, points in ((3, 70, 80), (23, 100, 320)):

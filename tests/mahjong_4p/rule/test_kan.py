@@ -6,9 +6,7 @@ import jax.numpy as jnp
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
 from mahjax.common.hand import Hand
-from mahjax.common.meld import Meld
-from mahjax.common.tile import Tile
-from mahjax.mahjong_4p.logic import (
+from mahjax.common.logic import (
     _draw_rinshan,
     _init,
     _kan,
@@ -17,6 +15,8 @@ from mahjax.mahjong_4p.logic import (
     _step,
     _turn_over_kan_dora,
 )
+from mahjax.common.meld import Meld
+from mahjax.common.tile import Tile
 from mahjax.mahjong_4p.state import State, default_state
 
 from ..helpers import STEP_KEY, _post_ankan_state, compiled_env
@@ -43,9 +43,9 @@ def test_draw_after_kan_advances_nothing_when_the_kan_dora_was_pre_flipped():
 def test_open_and_added_kan_dora_turns_over_at_the_discard():
     """A closed kan's new indicator shows at once; an open or added kan's only at the
     kanner's discard or next kan, so it is hidden while deciding on the rinshan tile."""
+    from mahjax.common import logic as m
     from mahjax.common.meld import Meld
     from mahjax.common.tile import Tile
-    from mahjax.mahjong_4p import logic as m
 
     kan = jax.jit(m._kan)
     discard = jax.jit(m._discard)
@@ -108,9 +108,9 @@ def test_a_robbed_added_kan_is_scored_before_the_previous_kans_indicator_turns_o
     that is robbed, that draw never comes: the first kan's indicator stays face down,
     for the robbing player's view and for the ron's score. If nobody robs it, the
     indicator turns over before the rinshan draw and counts for a rinshan tsumo."""
+    from mahjax.common import logic as m
     from mahjax.common.meld import Meld
     from mahjax.common.tile import Tile
-    from mahjax.mahjong_4p import logic as m
 
     kan = jax.jit(m._kan)
     draw_after_kan = jax.jit(_draw_rinshan)
@@ -190,7 +190,7 @@ def test_a_robbed_added_kan_is_scored_before_the_previous_kans_indicator_turns_o
 
 def test_no_kan_off_a_rinshan_draw_that_leaves_the_live_wall_empty() -> None:
     """A kan moves a live-wall tile to the dead wall, so with none left no further kan is offered."""
-    from mahjax.mahjong_4p import logic as m
+    from mahjax.common import logic as m
 
     east, south = 27, 28
     kan = jax.jit(m._kan)
@@ -401,7 +401,7 @@ def test_robbing_kan_second_candidate_pass_after_ron_does_not_draw_after_kan() -
 
 def test_red_added_kan_hides_whether_anyone_could_rob_it() -> None:
     """Neither ``last_player`` nor the action history may show that a chankan was declined."""
-    from mahjax.mahjong_4p import logic as m
+    from mahjax.common import logic as m
 
     six_s = 23
 

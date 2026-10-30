@@ -257,7 +257,7 @@ def test_dealer_can_tsumo_a_complete_first_draw_as_a_single_blessing_of_heaven()
 
     import jax
 
-    from mahjax.mahjong_4p import logic as m
+    from mahjax.common import logic as m
 
     dealt = [0, 4, 8, 9, 10, 48, 49, 50, 56, 57, 58, 96, 97]  # tile ids; the tile is id // 4
     first_draw = 98  # 7s

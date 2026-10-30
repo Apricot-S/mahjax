@@ -1,1 +1,2 @@
-"""Parts shared by the mahjong games: action ids, tiles, hands, melds, shanten and yaku."""
+"""What the mahjong games share: the rules (``logic``) and their parts, i.e. action ids,
+tiles, hands, melds, shanten and yaku."""

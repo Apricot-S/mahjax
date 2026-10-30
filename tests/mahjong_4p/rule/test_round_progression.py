@@ -2,9 +2,9 @@ import jax
 import jax.numpy as jnp
 
 from mahjax.common.action import Action
+from mahjax.common.logic import _deal_hands, _replace_state, _start_next_round_or_end_game
 from mahjax.common.tile import Tile
 from mahjax.mahjong_4p.env import Mahjong4p
-from mahjax.mahjong_4p.logic import _deal_hands, _replace_state, _start_next_round_or_end_game
 from mahjax.mahjong_4p.state import default_state
 
 from ..helpers import STEP_KEY, compiled_env
@@ -150,7 +150,7 @@ def test_calc_wind_assigns_east_to_dealer() -> None:
     only when the dealer sits at seat 0 or 2; at seats 1 and 3 it reports the dealer
     as West and some other seat as East, which mislabels seat-wind yakuhai and fu.
     """
-    from mahjax.mahjong_4p.logic import _calc_wind
+    from mahjax.common.logic import _calc_wind
 
     assert _calc_wind(jnp.int32(0), 4).tolist() == [0, 1, 2, 3]
     assert _calc_wind(jnp.int32(1), 4).tolist() == [3, 0, 1, 2]
@@ -319,7 +319,7 @@ def test_red_honba_does_not_wrap_after_127() -> None:
 
 def test_red_forty_three_honba_do_not_wrap_negative() -> None:
     """43 honba are +12900 points; stored as int8, ``honba * 3`` wrapped them."""
-    from mahjax.mahjong_4p import logic as m
+    from mahjax.common import logic as m
 
     base = default_state()
     state = m._replace_state(
@@ -376,7 +376,7 @@ def test_red_uma_scales_a_custom_order_points() -> None:
 
 def test_red_tied_players_are_ranked_by_their_starting_wind() -> None:
     """On equal score East-1's seat order decides, not the player index."""
-    from mahjax.mahjong_4p import logic as m
+    from mahjax.common import logic as m
 
     # P2 was the first dealer: P2 started East, P3 South, P0 West, P1 North.
     round_state = default_state().round_state.replace(

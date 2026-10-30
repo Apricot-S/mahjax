@@ -4,11 +4,11 @@ import jax
 import jax.numpy as jnp
 
 from mahjax.common.action import Action
+from mahjax.common.logic import _draw, _init, _mask_after_draw, _step
 from mahjax.common.tile import Tile
 from mahjax.mahjong_4p.config import RED
 from mahjax.mahjong_4p.constants import FIRST_DRAW_IDX
 from mahjax.mahjong_4p.env import Mahjong4p
-from mahjax.mahjong_4p.logic import _draw, _init, _mask_after_draw, _step
 from mahjax.mahjong_4p.state import State, default_state
 
 from ..helpers import STEP_KEY
