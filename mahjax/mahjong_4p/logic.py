@@ -573,14 +573,11 @@ def _draw(state: State, game_config: Optional[GameConfig] = None) -> State:
     )
     legal_action_mask_4p = state.players.legal_action_mask.at[c_p, :].set(legal_action_mask_c_p)
     normal_state = _replace_state(
-        _promote_next_draw_yaku(state, c_p),
+        _clear_furiten_by_pass(_promote_next_draw_yaku(state, c_p), c_p),
         target=jnp.int8(-1),
         next_deck_ix=next_deck_ix,
         last_draw=new_tile,
         legal_action_mask=legal_action_mask_4p,
-        furiten_by_pass=state.players.furiten_by_pass.at[c_p].set(
-            state.players.furiten_by_pass[c_p] & state.players.riichi[c_p]
-        ),
         is_haitei=is_haitei,
         draw_next=FALSE,
     )
@@ -754,7 +751,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     )  # Set the legal action for the player who discarded the tile to False
     # A hand this tile completes without a yaku is not offered RON, but letting the win go by still makes it furiten.
     missed_win = (
-        (jnp.arange(4) != c_p)
+        (jnp.arange(NUM_PLAYERS) != c_p)
         & state.players.can_win[:, Tile.to_tile_type(tile)]
         & ~legal_action_mask_4p[:, Action.RON]
     )
@@ -838,8 +835,7 @@ def _mask_after_discard(
     pm_mask = _mask_for_pon_open_kan(hand, tile, cannot_kan) & ~cannot_meld
     can_ron = state.players.can_win[c_p, Tile.to_tile_type(tile)]
     has_yaku = state.players.has_yaku[c_p, CURRENT_TILE]
-    is_furiten = state.players.furiten_by_discard[c_p] | state.players.furiten_by_pass[c_p]
-    ron_ok = ((has_yaku | haitei) & can_ron) & ~is_furiten
+    ron_ok = ((has_yaku | haitei) & can_ron) & ~_is_furiten(state)[c_p]
     # Combine the 1D mask and expand it to 4×NUM_ACTION
     mask = chi_mask | pm_mask
     mask = mask.at[Action.RON].set(ron_ok)
@@ -1039,6 +1035,11 @@ def _is_waiting_tile(can_ron: Array, tile: int) -> bool:
     return (tile != -1) & can_ron[tile_type]
 
 
+def _is_furiten(state: State) -> Array:
+    """Every player's furiten, shaped (NUM_PLAYERS,): by their own discards or by a win let go."""
+    return state.players.furiten_by_discard | state.players.furiten_by_pass
+
+
 def _reveal_pending_kan_dora(state: State) -> State:
     """
     Turn over the new indicator of an open or added kan if it is still face down
@@ -1221,9 +1222,8 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
         fu=fu,
     )
     # Check if the player can win by RON
-    is_furiten = state.players.furiten_by_discard | state.players.furiten_by_pass  # (4,)
     legal_action_mask_4p = state.players.legal_action_mask.at[:, Action.RON].set(
-        state.players.can_win[:, Tile.to_tile_type(tile)] & ~is_furiten
+        state.players.can_win[:, Tile.to_tile_type(tile)] & ~_is_furiten(state)
     )
     legal_action_mask_4p = legal_action_mask_4p.at[c_p, Action.RON].set(
         FALSE
@@ -1306,10 +1306,8 @@ def _added_kan(state: State, target):
 
 
 def _clear_furiten_by_pass(state: State, c_p: Array) -> State:
-    """Furiten by pass lasts only until the player's own turn comes round again.
-
-    ``_draw`` does this for a normal turn; a turn taken by pon / chi / open kan
-    has no draw, so those call it directly. Riichi keeps the player furiten.
+    """Furiten by pass lasts only until the player's own turn comes round again, by a
+    draw or by a pon / chi / open kan. Riichi keeps the player furiten.
     """
     return _replace_state(
         state,
@@ -1451,6 +1449,13 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
     # If the player who declared the KAN passes, set the next player from the legal action
     can_robbing_kan = state.round_state.kan_declared
     is_ron_player = jnp.bool_(state.players.legal_action_mask[c_p, Action.RON])
+    # Letting a RON go makes the player furiten until their next turn, whatever follows.
+    state = _replace_state(
+        state,
+        furiten_by_pass=state.players.furiten_by_pass.at[c_p].set(
+            state.players.furiten_by_pass[c_p] | is_ron_player
+        ),
+    )
     # Only what was offered is declined; a call still waiting on a higher claim stays.
     legal_action_mask_4p = state.players.legal_action_mask.at[c_p, :].set(
         state.players.legal_action_mask[c_p] & ~_claims_open_to(state.players.legal_action_mask, c_p)
@@ -1475,19 +1480,9 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
             # Keep every row as a PASS before any RON leaves it, lower calls included:
             # a stored row must not show whether an earlier candidate declared RON.
             legal_action_mask=legal_action_mask_4p.at[next_ron_player, Action.PASS].set(TRUE),
-            furiten_by_pass=state.players.furiten_by_pass.at[c_p].set(
-                state.players.furiten_by_pass[c_p] | is_ron_player
-            ),
             draw_next=FALSE,
         ),
-        lambda: _settle_ron(
-            _replace_state(
-                state,
-                furiten_by_pass=state.players.furiten_by_pass.at[c_p].set(
-                    state.players.furiten_by_pass[c_p] | is_ron_player
-                ),
-            )
-        ),
+        lambda: _settle_ron(state),
     )
     passed = jax.lax.cond(
         is_post_ron,
@@ -1501,9 +1496,6 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
                     jnp.int8((state.round_state.last_player + 1) % 4),
                 ),
                 target=jnp.int8(-1),
-                furiten_by_pass=state.players.furiten_by_pass.at[c_p].set(
-                    state.players.furiten_by_pass[c_p] | is_ron_player
-                ),
                 draw_next=TRUE & ~can_robbing_kan,
                 is_abortive_draw_normal=is_abortive_draw_normal,
                 legal_action_mask=legal_action_mask_4p,
@@ -1514,9 +1506,6 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
                 legal_action_mask=legal_action_mask_4p.at[
                     next_meld_player, Action.PASS
                 ].set(TRUE),
-                furiten_by_pass=state.players.furiten_by_pass.at[c_p].set(
-                    state.players.furiten_by_pass[c_p] | is_ron_player
-                ),
             ),
         ),
     )
