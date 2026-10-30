@@ -12,8 +12,6 @@ from mahjax.common.constants import (
     MAX_MELDS_PER_PLAYER,
     NUM_TILE_TYPES,
     NUM_TILE_TYPES_WITH_RED,
-    SENTINEL_DISCARD_VALUE,
-    SENTINEL_MELD_VALUE,
     SENTINEL_TILE_ID,
 )
 from mahjax.common.meld import EMPTY_MELD
@@ -39,25 +37,20 @@ TRUE = jnp.bool_(True)
 class PlayerStateArrays:
     hand: jnp.ndarray = jnp.zeros((NUM_PLAYERS, NUM_TILE_TYPES), dtype=jnp.int8)
     hand_with_red: jnp.ndarray = jnp.zeros((NUM_PLAYERS, NUM_TILE_TYPES_WITH_RED), dtype=jnp.int8)
+    # Reserved for the hand's tile ids (0-135). Nothing fills it yet, so every
+    # slot is SENTINEL_TILE_ID; read the hand from ``hand_with_red``.
     hand_ids: jnp.ndarray = jnp.full((NUM_PLAYERS, MAX_HAND_TILES), SENTINEL_TILE_ID, dtype=jnp.int16)
-    hand_counts: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.int8)
-    drawn_tile: jnp.ndarray = jnp.full((NUM_PLAYERS,), SENTINEL_TILE_ID, dtype=jnp.int16)
     legal_action_mask: jnp.ndarray = jnp.zeros((NUM_PLAYERS, LEGAL_ACTION_SIZE), dtype=jnp.bool_)
     can_win: jnp.ndarray = jnp.zeros((NUM_PLAYERS, NUM_TILE_TYPES), dtype=jnp.bool_)
     has_yaku: jnp.ndarray = jnp.zeros((NUM_PLAYERS, 2), dtype=jnp.bool_)
     fan: jnp.ndarray = jnp.zeros((NUM_PLAYERS, 2), dtype=jnp.int32)
     fu: jnp.ndarray = jnp.zeros((NUM_PLAYERS, 2), dtype=jnp.int32)
     melds: jnp.ndarray = jnp.full((NUM_PLAYERS, MAX_MELDS_PER_PLAYER), EMPTY_MELD, dtype=jnp.uint16)
-    meld_tiles: jnp.ndarray = jnp.full((NUM_PLAYERS, MAX_MELDS_PER_PLAYER, 4), SENTINEL_TILE_ID, dtype=jnp.int16)
-    meld_info: jnp.ndarray = jnp.full((NUM_PLAYERS, MAX_MELDS_PER_PLAYER, 3), SENTINEL_MELD_VALUE, dtype=jnp.int8)
     meld_counts: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.int8)
     river: jnp.ndarray = jnp.full((NUM_PLAYERS, MAX_DISCARDS_PER_PLAYER), EMPTY_RIVER, dtype=jnp.uint16)
-    discards: jnp.ndarray = jnp.full((NUM_PLAYERS, MAX_DISCARDS_PER_PLAYER), SENTINEL_DISCARD_VALUE, dtype=jnp.int16)
-    discard_info: jnp.ndarray = jnp.full((NUM_PLAYERS, MAX_DISCARDS_PER_PLAYER, 4), SENTINEL_MELD_VALUE, dtype=jnp.int8)
     discard_counts: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.int8)
     riichi: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.bool_)
     riichi_declared: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.bool_)
-    riichi_step: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.int8)
     double_riichi: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.bool_)
     ippatsu: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.bool_)
     furiten_by_discard: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.bool_)

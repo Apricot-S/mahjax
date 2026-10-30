@@ -69,14 +69,7 @@ The shared field list and the round-transition style (`auto` / `confirm`) are do
 | Field | Shape | Type | Meaning |
 | :--- | :---: | :--- | :--- |
 | `hand_with_red` | `(4, 37)` | `int8` | Hand histogram in the 37-tile-type space (34 tile types + 3 red fives). |
-| `hand_ids` | `(4, 14)` | `int16` | Individual tile ids in the hand (each id in `[0, 135]`); unused slots are sentinel. |
-| `hand_counts` | `(4,)` | `int8` | Number of valid tiles in `hand_ids`. |
-| `drawn_tile` | `(4,)` | `int16` | Most recent drawn tile id per player; sentinel if none. |
-| `meld_tiles` | `(4, 4, 4)` | `int16` | Tile ids that make up each meld. |
-| `meld_info` | `(4, 4, 3)` | `int8` | Auxiliary info per meld (target / src / action). |
-| `discards` | `(4, 24)` | `int16` | Individual discarded tile ids per player. |
-| `discard_info` | `(4, 24, 4)` | `int8` | Auxiliary info per discard (tsumogiri flag, etc.). |
-| `riichi_step` | `(4,)` | `int8` | Step at which each player declared riichi (for ippatsu tracking). |
+| `hand_ids` | `(4, 14)` | `int16` | Reserved for the tile ids in the hand (`[0, 135]`). Not populated yet: every slot is sentinel. Read the hand from `hand_with_red`. |
 | `has_nagashi_mangan` | `(4,)` | `bool` | Whether each player is still eligible for 流し満貫. |
 
 The shared `hand` array (tile-type histogram in `[0, 33]` space) is also still kept for backward compatibility with code paths that do not need red-five resolution.
