@@ -79,7 +79,7 @@ All entries are leading-axis-`4` arrays indexed by absolute player id (seat 0..3
 | `has_yaku` | `(4, 2)` | `bool` | Whether each player has a valid yaku, for RON / TSUMO respectively. |
 | `fan` | `(4, 2)` | `int32` | Fan count, for RON / TSUMO respectively. |
 | `fu` | `(4, 2)` | `int32` | Fu count, for RON / TSUMO respectively. |
-| `melds` | `(4, 4)` | `uint16` | Packed meld records (action / target / src). |
+| `melds` | `(4, 4)` | `uint16` | Packed meld records (action / target / src); decode them with `Meld.action`, `Meld.target_tile` and `Meld.src` from `mahjax.common.meld`. |
 | `meld_counts` | `(4,)` | `int8` | Number of melds claimed by each player. |
 | `river` | `(4, 24)` | `uint16` | Discard rivers; packed tile + tsumogiri flag. |
 | `discard_counts` | `(4,)` | `int8` | Number of discards in each player's river. |

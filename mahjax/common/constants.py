@@ -17,8 +17,6 @@ RED_FIVE_TILE_TYPES: Final[tuple[int, int, int]] = (4, 13, 22)
 RED_FIVE_TILE_IDS: Final[tuple[int, int, int]] = tuple(tile_type * 4 for tile_type in RED_FIVE_TILE_TYPES)
 
 SENTINEL_TILE_ID: Final[int] = -1
-SENTINEL_MELD_VALUE: Final[int] = -1
-SENTINEL_DISCARD_VALUE: Final[int] = -1
 
 FALSE = jnp.bool_(False)
 TRUE = jnp.bool_(True)
