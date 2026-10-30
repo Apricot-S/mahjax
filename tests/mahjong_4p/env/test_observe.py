@@ -5,7 +5,7 @@ from mahjax.common.action import Action
 from mahjax.common.meld import Meld
 from mahjax.common.shanten import Shanten
 from mahjax.common.tile import River, Tile
-from mahjax.mahjong_4p.env import _observe_dict
+from mahjax.mahjong_4p.observation import _observe_dict
 from mahjax.mahjong_4p.state import default_state
 
 
