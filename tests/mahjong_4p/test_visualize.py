@@ -41,10 +41,9 @@ def test_render_round_svg_labels_sudden_death_rounds() -> None:
         assert en in render_round_svg(st, show_all_hands=True, tile_style="bilingual")
 
 
-def test_save_play_history_svg_for_10_steps() -> None:
+def test_save_play_history_svg_for_10_steps(tmp_path: Path) -> None:
     states = _collect_states(10)
-    out = Path("fig/red_mahjong_10steps_test.svg")
-    out.parent.mkdir(parents=True, exist_ok=True)
+    out = tmp_path / "red_4p_10steps.svg"
     save_play_history_svg(states, out, columns=5, show_all_hands=True)
     assert out.exists()
     assert out.stat().st_size > 0
