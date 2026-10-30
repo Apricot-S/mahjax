@@ -66,6 +66,12 @@ ACTION_KIND = ACTION_KIND.at[Action.PASS].set(7)
 ACTION_KIND = ACTION_KIND.at[Action.KYUUSHU].set(8)
 ACTION_KIND = ACTION_KIND.at[Action.DUMMY].set(9)
 
+# Columns of the cached ``has_yaku`` / ``fan`` / ``fu``, shaped (NUM_PLAYERS, 2):
+# the win on the tile now on offer (a discard or kan tile to ron, or the tile just
+# drawn) and the tsumo on the tile the next draw will bring.
+CURRENT_TILE = 0
+NEXT_DRAW = 1
+
 _PLAYER_FIELDS = frozenset(field.name for field in dataclasses.fields(PlayerStateArrays))
 _ROUND_FIELDS = frozenset(field.name for field in dataclasses.fields(RoundState))
 
@@ -202,7 +208,7 @@ def _trigger_special_abortive_draw(state: State) -> State:
 
 
 @jax.jit
-def yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
+def _yaku_lookahead(
     state: State,
     tile: Array,
     next_tile: Array,
@@ -211,8 +217,9 @@ def yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
     use_red_fives: Array = jnp.bool_(True),
 ) -> Tuple[Array, Array, Array]:
     """
-    Calculate YAKU for the discarded tile and the next drawn tile.
-    Returns per-player cached values for RON on ``tile`` and TSUMO on ``next_tile``.
+    Judge every player's RON on ``tile`` and TSUMO on ``next_tile``, for the cached
+    ``has_yaku`` / ``fan`` / ``fu``: column ``CURRENT_TILE`` holds the RON and
+    ``NEXT_DRAW`` the TSUMO.
     ``ron_(ura_)dora_indicators`` score the RON with other indicators than the TSUMO:
     a robbed added kan is scored before the previous kan's indicator turns over.
     """
@@ -224,24 +231,35 @@ def yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
             ura_dora_indicators=ron_ura_dora_indicators,
         )
     tsumo_state = _replace_state(state, last_draw=jnp.int8(next_tile))
-    is_rons2 = jnp.array([True, False], dtype=jnp.bool_)
-    idx = jnp.arange(8)
+    # One batched judge over every (player, column) pair.
+    idx = jnp.arange(NUM_PLAYERS * 2)
     player_idx = idx // 2
-    is_ron_idx = idx % 2
+    is_ron_b = idx % 2 == CURRENT_TILE
 
     hand_b = state.players.hand_with_red[player_idx]
-    is_ron_b = is_rons2[is_ron_idx]
 
     def f(hand, player, is_ron):
         rs = jax.lax.cond(is_ron, lambda: ron_state, lambda: tsumo_state)
         return Yaku.judge(hand, is_ron, player, rs, use_red_fives=use_red_fives)
 
-    yaku8, fan8, fu8 = jax.vmap(f)(hand_b, player_idx, is_ron_b)
-    yaku42 = yaku8.reshape(4, 2, -1)
-    fan42 = fan8.reshape(4, 2)
-    fu42 = fu8.reshape(4, 2)
-    has_yaku = yaku42.any(axis=-1)
-    return has_yaku, fan42.astype(jnp.int32), fu42.astype(jnp.int32)
+    yaku, fan, fu = jax.vmap(f)(hand_b, player_idx, is_ron_b)
+    has_yaku = yaku.reshape(NUM_PLAYERS, 2, -1).any(axis=-1)
+    return (
+        has_yaku,
+        fan.reshape(NUM_PLAYERS, 2).astype(jnp.int32),
+        fu.reshape(NUM_PLAYERS, 2).astype(jnp.int32),
+    )
+
+
+def _promote_next_draw_yaku(state: State, player: Array) -> State:
+    """The tile ``player`` just drew is the one the look-ahead judged as their next draw."""
+    players = state.players
+    return _replace_state(
+        state,
+        has_yaku=players.has_yaku.at[player, CURRENT_TILE].set(players.has_yaku[player, NEXT_DRAW]),
+        fan=players.fan.at[player, CURRENT_TILE].set(players.fan[player, NEXT_DRAW]),
+        fu=players.fu.at[player, CURRENT_TILE].set(players.fu[player, NEXT_DRAW]),
+    )
 
 
 def _init(rng: PRNGKey, game_config: Optional[GameConfig] = None) -> State:
@@ -328,9 +346,9 @@ def _init_for_next_round_from_prepared(
     legal_action_mask_4p = ZERO_MASK_2D.at[c_p, :].set(legal_action_mask_c_p)
     state = _replace_state(
         state,
-        has_yaku=state.players.has_yaku.at[c_p, 0].set(can_ron[c_p, new_tile_type]),
-        fan=state.players.fan.at[c_p, 0].set(jnp.where(fu == 0, fan, 0)),
-        fu=state.players.fu.at[c_p, 0].set(jnp.int32(0)),
+        has_yaku=state.players.has_yaku.at[c_p, CURRENT_TILE].set(can_ron[c_p, new_tile_type]),
+        fan=state.players.fan.at[c_p, CURRENT_TILE].set(jnp.where(fu == 0, fan, 0)),
+        fu=state.players.fu.at[c_p, CURRENT_TILE].set(jnp.int32(0)),
         can_win=can_ron,
         legal_action_mask=legal_action_mask_4p,
         next_deck_ix=next_deck_ix,
@@ -543,11 +561,8 @@ def _draw(state: State, game_config: Optional[GameConfig] = None) -> State:
     )
     legal_action_mask_4p = state.players.legal_action_mask.at[c_p, :].set(legal_action_mask_c_p)
     normal_state = _replace_state(
-        state,
+        _promote_next_draw_yaku(state, c_p),
         target=jnp.int8(-1),
-        has_yaku=state.players.has_yaku.at[c_p, 0].set(state.players.has_yaku[c_p, 1]),
-        fan=state.players.fan.at[c_p, 0].set(state.players.fan[c_p, 1]),
-        fu=state.players.fu.at[c_p, 0].set(state.players.fu[c_p, 1]),
         next_deck_ix=next_deck_ix,
         last_draw=new_tile,
         legal_action_mask=legal_action_mask_4p,
@@ -632,7 +647,7 @@ def _mask_after_draw(
     can_tsumo = state.players.can_win[c_p, new_tile_type]
     _can_after_kan = state.round_state.can_after_kan
     _is_haitei = state.round_state.is_haitei
-    _has_yaku = state.players.has_yaku[c_p, 1]
+    _has_yaku = state.players.has_yaku[c_p, NEXT_DRAW]
     mask = mask.at[Action.TSUMO].set(
         can_tsumo
         & (state.players.is_hand_concealed[c_p] | _can_after_kan | _is_haitei | _has_yaku)
@@ -702,7 +717,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     )
     state = _set_player_hand(state, c_p, hand_with_red_row)
     next_tile = state.round_state.deck[state.round_state.next_deck_ix]
-    has_yaku, fan, fu = yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
+    has_yaku, fan, fu = _yaku_lookahead(
         state, tile, next_tile, use_red_fives=config.use_red_fives
     )
     can_win = jax.vmap(Hand.can_ron, in_axes=(None, 0))(state.players.hand[c_p], TILE_RANGE)
@@ -816,9 +831,7 @@ def _mask_after_discard(
     )  # Cannot play CHI from the player who is not the upper player
     pm_mask = _mask_for_pon_open_kan(hand, tile, cannot_kan) & ~cannot_meld
     can_ron = state.players.can_win[c_p, Tile.to_tile_type(tile)]
-    has_yaku = state.players.has_yaku[
-        c_p, 0
-    ]  # Reference the information about the discarded tile and the next drawn tile
+    has_yaku = state.players.has_yaku[c_p, CURRENT_TILE]
     is_furiten = state.players.furiten_by_discard[c_p] | state.players.furiten_by_pass[c_p]
     ron_ok = ((has_yaku | haitei) & can_ron) & ~is_furiten
     # Combine the 1D mask and expand it to 4×NUM_ACTION
@@ -1121,12 +1134,10 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     legal_action_mask_4p = state.players.legal_action_mask.at[c_p, :].set(
         legal_action_mask_c_p
     )  # Update the legal action for the player who drew the tile
-    normal_state = _replace_state(state,   # type:ignore
+    normal_state = _replace_state(
+        _promote_next_draw_yaku(state, c_p),
         last_draw=rinshan_tile,
         legal_action_mask=legal_action_mask_4p,
-        has_yaku=state.players.has_yaku.at[c_p, 0].set(state.players.has_yaku[c_p, 1]),
-        fan=state.players.fan.at[c_p, 0].set(state.players.fan[c_p, 1]),
-        fu=state.players.fu.at[c_p, 0].set(state.players.fu[c_p, 1]),
         is_haitei=is_haitei,
     )
     return _set_player_hand(normal_state, c_p, hand_with_red[c_p])
@@ -1192,7 +1203,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
         lambda s: s,
         state,
     )
-    has_yaku, fan, fu = yaku_judge_for_discarded_or_kanned_tile_and_next_draw_tile(
+    has_yaku, fan, fu = _yaku_lookahead(
         state,
         tile,
         rinshan_tile,
@@ -1559,9 +1570,9 @@ def _ron(state: State, game_config: Optional[GameConfig] = None) -> State:
     is_double_riichi = state.players.double_riichi[c_p]  # Double Riichi (ダブル立直)
     can_robbing_kan = state.round_state.kan_declared  # RobbingKan (槍槓)
     is_houtei = state.round_state.is_haitei & ~can_robbing_kan  # 河底撈魚
-    is_yakuman = state.players.fu[c_p, 0] == 0  # When Yakuman, fu is 0
+    is_yakuman = state.players.fu[c_p, CURRENT_TILE] == 0  # When Yakuman, fu is 0
     basic_score = Yaku.score(
-        state.players.fan[c_p, 0]
+        state.players.fan[c_p, CURRENT_TILE]
         + (
             jnp.int32(is_ippatsu)
             + jnp.int32(is_double_riichi)
@@ -1571,7 +1582,7 @@ def _ron(state: State, game_config: Optional[GameConfig] = None) -> State:
         * (
             1 - is_yakuman
         ),  # When Yakuman, do not add ippatsu, double riichi, robbing_kan, houtei
-        state.players.fu[c_p, 0],
+        state.players.fu[c_p, CURRENT_TILE],
     )
     score = jnp.where(state.round_state.dealer == c_p, basic_score * 6, basic_score * 4)
     # Round up the score to the nearest multiple of 100
@@ -1704,9 +1715,9 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
     is_pure_first_turn = _is_first_turn(state.round_state.next_deck_ix) & (
         state.players.meld_counts.sum() == 0
     )
-    is_hand_yakuman = state.players.fu[c_p, 0] == 0
+    is_hand_yakuman = state.players.fu[c_p, CURRENT_TILE] == 0
     is_yakuman = is_hand_yakuman | is_pure_first_turn
-    fan = state.players.fan[c_p, 0]
+    fan = state.players.fan[c_p, CURRENT_TILE]
     fan = jnp.where(
         is_hand_yakuman,
         fan + is_pure_first_turn,
@@ -1727,7 +1738,7 @@ def _tsumo(state: State, game_config: Optional[GameConfig] = None) -> State:
             + jnp.int8(is_haitei)
         ),
     )  # When Yakuman, do not add AfterKan, Ippatsu, Double Riichi, Bottom of the Sea (海底摸月)
-    fu = jnp.where(is_yakuman, 0, state.players.fu[c_p, 0])
+    fu = jnp.where(is_yakuman, 0, state.players.fu[c_p, CURRENT_TILE])
     basic_score = Yaku.score(
         jnp.int32(fan),  # Calculate the score when the tile is discarded
         jnp.int32(fu),
