@@ -22,7 +22,7 @@ import jax.numpy as jnp
 from mahjax._src.types import Array, PRNGKey
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
-from mahjax.common.constants import DORA_ARRAY, INITIAL_HAND_TILES, MAX_KANS_PER_ROUND, TILE_RANGE
+from mahjax.common.constants import INITIAL_HAND_TILES, MAX_KANS_PER_ROUND, SENTINEL_TILE_ID, TILE_RANGE
 from mahjax.common.hand import Hand
 from mahjax.common.meld import Meld
 from mahjax.common.tile import River, Tile
@@ -33,6 +33,7 @@ from .constants import (
     FALSE,
     FIRST_DORA_INDICATOR_IX,
     FIRST_DRAW_IDX,
+    MAX_DORA_INDICATORS,
     MIN_LIVE_DRAWS_FOR_RIICHI,
     NUM_PHYSICAL_TILES,
     NUM_PLAYERS,
@@ -323,8 +324,9 @@ def _prepare_next_round_assets(
     deck = _apply_red_five_config(deck, game_config)
     init_hand_with_red = _deal_hands(deck)
     init_hand = jax.vmap(Hand.to_34)(init_hand_with_red)
-    dora_indicators = jnp.array([deck[_dora_indicator_ix(0)], -1, -1, -1, -1], dtype=jnp.int8)
-    ura_dora_indicators = jnp.array([deck[_ura_dora_indicator_ix(0)], -1, -1, -1, -1], dtype=jnp.int8)
+    face_down = jnp.full(MAX_DORA_INDICATORS, SENTINEL_TILE_ID, dtype=jnp.int8)
+    dora_indicators = face_down.at[0].set(deck[_dora_indicator_ix(0)])
+    ura_dora_indicators = face_down.at[0].set(deck[_ura_dora_indicator_ix(0)])
     can_ron = v_can_win(init_hand, TILE_RANGE)
     return deck, dora_indicators, ura_dora_indicators, init_hand_with_red, can_ron
 
@@ -1053,21 +1055,24 @@ def _reveal_pending_kan_dora(state: State) -> State:
     - A closed kan turns its indicator over at once in ``_kan``
     - An open or added kan's waits for the kanner's discard or next kan, and while it waits ``n_kan_doras`` is one behind the completed kans
     """
-    n_kan_doras = state.round_state.n_kan_doras
     return jax.lax.cond(
-        n_kan_doras.astype(jnp.int32) < state.players.n_kan.sum().astype(jnp.int32),
-        lambda s: _replace_state(
-            s,
-            n_kan_doras=n_kan_doras + 1,
-            dora_indicators=s.round_state.dora_indicators.at[n_kan_doras + 1].set(
-                s.round_state.deck[_dora_indicator_ix(n_kan_doras + 1)]
-            ),
-            ura_dora_indicators=s.round_state.ura_dora_indicators.at[n_kan_doras + 1].set(
-                s.round_state.deck[_ura_dora_indicator_ix(n_kan_doras + 1)]
-            ),
-        ),
+        state.round_state.n_kan_doras.astype(jnp.int32) < state.players.n_kan.sum().astype(jnp.int32),
+        _turn_over_kan_dora,
         lambda s: s,
         state,
+    )
+
+
+def _turn_over_kan_dora(state: State) -> State:
+    """Turn over the next kan-dora indicator; its ura dora is the tile below it."""
+    k = state.round_state.n_kan_doras + 1
+    return _replace_state(
+        state,
+        n_kan_doras=k,
+        dora_indicators=state.round_state.dora_indicators.at[k].set(state.round_state.deck[_dora_indicator_ix(k)]),
+        ura_dora_indicators=state.round_state.ura_dora_indicators.at[k].set(
+            state.round_state.deck[_ura_dora_indicator_ix(k)]
+        ),
     )
 
 
@@ -1201,17 +1206,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
     is_closed_kan = (~is_open_kan) & (~is_added_kan)
     state = jax.lax.cond(
         is_closed_kan,
-        lambda s: _replace_state(
-            s,
-            n_kan_doras=s.round_state.n_kan_doras + 1,
-            dora_indicators=s.round_state.dora_indicators.at[s.round_state.n_kan_doras + 1].set(
-                s.round_state.deck[_dora_indicator_ix(s.round_state.n_kan_doras + 1)]
-            ),
-            ura_dora_indicators=s.round_state.ura_dora_indicators.at[
-                s.round_state.n_kan_doras + 1
-            ].set(s.round_state.deck[_ura_dora_indicator_ix(s.round_state.n_kan_doras + 1)]),
-            last_deck_ix=s.round_state.last_deck_ix + 1,
-        ),
+        lambda s: _replace_state(_turn_over_kan_dora(s), last_deck_ix=s.round_state.last_deck_ix + 1),
         lambda s: s,
         state,
     )
@@ -2078,27 +2073,3 @@ def _start_next_round_or_end_game(
         lambda: terminated_state,
         lambda: next_round_state,
     )
-
-
-def _dora_array(state: State) -> Array:
-    """
-    - Create an array of length 34, where the number of tiles is stored in the index of the dora tile
-    """
-
-    def update_dora_counts(dora_counts: Array, dora_indicator: Array) -> Array:
-        is_dora_valid = dora_indicator != -1
-        dora_tile_type = Tile.to_tile_type(dora_indicator)
-        return dora_counts.at[DORA_ARRAY[dora_tile_type]].add(is_dora_valid)
-
-    # Count occurrences of each dora type more efficiently using bincount-like approach
-    # For normal dora
-    dora_counts = jnp.zeros(Tile.NUM_TILE_TYPE, dtype=jnp.int8)
-    dora_counts = jax.vmap(update_dora_counts, in_axes=(None, 0))(
-        dora_counts, state.round_state.dora_indicators
-    ).sum(axis=0)
-    # For ura dora
-    ura_dora_counts = jnp.zeros(Tile.NUM_TILE_TYPE, dtype=jnp.int8)
-    ura_dora_counts = jax.vmap(update_dora_counts, in_axes=(None, 0))(
-        ura_dora_counts, state.round_state.ura_dora_indicators
-    ).sum(axis=0)
-    return jnp.array([dora_counts, ura_dora_counts])
