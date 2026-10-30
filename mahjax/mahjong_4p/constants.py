@@ -30,7 +30,8 @@ HONBA_SCORE: Final[int] = HONBA_BONUS // 100
 NOTEN_PENALTY_SCORE: Final[int] = 30
 # Riichi needs at least this many live-wall draws left after the declarer's.
 MIN_LIVE_DRAWS_FOR_RIICHI: Final[int] = 4
-SUDDEN_DEATH_ROUNDS: Final[int] = 4
+# The extra rounds (西入) are one more wind: a kyoku per player.
+SUDDEN_DEATH_ROUNDS: Final[int] = NUM_PLAYERS
 
 LEGAL_ACTION_SIZE: Final[int] = Action.NUM_ACTION
 

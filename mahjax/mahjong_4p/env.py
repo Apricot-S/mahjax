@@ -23,7 +23,7 @@ from mahjax.common.config import GameConfig
 from mahjax.core import Env
 
 from .config import NO_RED
-from .constants import TRUE
+from .constants import NUM_PLAYERS, TRUE
 from .logic import (
     _start_next_round_or_end_game,
     _init,
@@ -59,7 +59,8 @@ class Mahjong4p(Env):
             )
         self.round_mode = round_mode
         self.one_round = round_mode == "single"
-        self.round_limit = jnp.int8(3 if round_mode == "east" else 7)
+        # The index of the last regular kyoku: one wind of NUM_PLAYERS kyoku for 'east', two otherwise.
+        self.round_limit = jnp.int8(NUM_PLAYERS - 1 if round_mode == "east" else 2 * NUM_PLAYERS - 1)
         self.observe_func = _observe_dict if observe_type == "dict" else _observe_2D
         self.observe_privileged_func = _observe_privileged_dict if observe_type == "dict" else _observe_privileged_2D
         self.order_points = order_points
@@ -170,7 +171,7 @@ class Mahjong4p(Env):
 
     @property
     def num_players(self) -> int:
-        return 4
+        return NUM_PLAYERS
 
     @property
     def num_actions(self) -> int:

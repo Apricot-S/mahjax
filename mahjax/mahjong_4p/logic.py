@@ -393,8 +393,8 @@ def _init_for_next_round_from_prepared(
 
 def _calc_wind(east_player: Array) -> Array:
     east_player = jnp.asarray(east_player, dtype=jnp.int32)
-    players = jnp.arange(4, dtype=jnp.int32)
-    return ((players - east_player) % 4).astype(jnp.int8)
+    players = jnp.arange(NUM_PLAYERS, dtype=jnp.int32)
+    return ((players - east_player) % NUM_PLAYERS).astype(jnp.int8)
 
 
 def _is_uninterrupted_first_turn(state: State, next_deck_ix: Array) -> Array:
@@ -1914,7 +1914,7 @@ def _final_score(round_state) -> Array:
     order = _rank_order(round_state)
     rank_points = jnp.zeros_like(round_state.score).at[order].set(round_state.order_points)
     score = round_state.score + rank_points
-    return score.at[order[0]].add(10 * round_state.kyotaku.astype(jnp.int32))
+    return score.at[order[0]].add(RIICHI_BET_SCORE * round_state.kyotaku.astype(jnp.int32))
 
 
 def _is_game_end(round_state, will_dealer_continue: Array) -> Array:
@@ -1941,8 +1941,8 @@ def _is_game_end(round_state, will_dealer_continue: Array) -> Array:
 
 def _will_dealer_continue(state: State) -> Array:
     """Whether the dealer deals the next round too: they won, or nobody won and they are tenpai."""
-    hora = state.players.has_won  # (4,)
-    is_tempai = state.players.can_win.any(axis=-1)  # (4,)
+    hora = state.players.has_won
+    is_tempai = state.players.can_win.any(axis=-1)
     dealer = state.round_state.dealer
     has_other_than_dealer_won = hora.any() & ~hora[dealer]
     return jnp.logical_or(is_tempai[dealer] & ~has_other_than_dealer_won, hora[dealer])
@@ -1957,7 +1957,7 @@ def _carry_over(state: State, will_dealer_continue: Array) -> State:
     the scores and the riichi sticks carry over.
     """
     dealer = state.round_state.dealer
-    next_dealer = jnp.where(will_dealer_continue, dealer, (dealer + 1) % 4)
+    next_dealer = jnp.where(will_dealer_continue, dealer, _next_seat(dealer))
     has_winner = state.players.has_won.any()
     return _make_state(
         current_player=next_dealer,  # Start from the dealer
@@ -1991,7 +1991,7 @@ def _next_round(
     - Move the dealer
     - Process the round
     - If the round is ended, calculate the rank points. The Kyotaku is the top (same point wind order)
-    - DUMMY sharing: 3 times of rotation (cp to +1 mod 4) after the 4th time, the result is determined
+    - DUMMY sharing: the turn rotates until every player has confirmed the round's end, then the next round starts
     """
     dc = state.round_state.dummy_count  # int8
     if prepared_next_round is None:
@@ -2004,7 +2004,7 @@ def _next_round(
 
         game_end = _is_game_end(s.round_state, will_dealer_continue)
         return _replace_state(s, 
-            current_player=jnp.int8((s.current_player + 1) % 4),
+            current_player=jnp.int8(_next_seat(s.current_player)),
             terminated=(s.round_state.dummy_count == 0) & game_end,
             dummy_count=jnp.int8(
                 s.round_state.dummy_count + jnp.int8(1)
@@ -2019,7 +2019,7 @@ def _next_round(
             ),
         )
 
-    # ---- After the DUMMY sharing phase (=3), determine the next round or end the game ----
+    # ---- After the DUMMY sharing phase (NUM_PLAYERS - 1 rotations), start the next round or end the game ----
     def _finalize_and_start_next(s: State):
         will_dealer_continue = _will_dealer_continue(s)
         next_round_state = _init_for_next_round_from_prepared(
@@ -2052,7 +2052,7 @@ def _next_round(
     final_start_state = _finalize_and_start_next(state)
     rotate_state = _rotate_once(state)
     return jax.lax.cond(
-        dc == jnp.int8(3),
+        dc == jnp.int8(NUM_PLAYERS - 1),
         lambda: final_start_state,
         lambda: rotate_state,  # Early return here
     )

@@ -604,7 +604,8 @@ class Yaku:
         n_meld = rs.players.meld_counts[p]
         last_tile = jnp.where(is_ron, rs.round_state.target, rs.round_state.last_draw)
         riichi = rs.players.riichi[p]
-        prevalent_wind = jnp.int32(rs.round_state.round // 4)
+        # A wind lasts one kyoku per player.
+        prevalent_wind = jnp.int32(rs.round_state.round // rs.round_state.seat_wind.shape[0])
         seat_wind = jnp.int32(rs.round_state.seat_wind[p])
         dora = _dora_array_from_state(rs)
         return Yaku.judge_hand_related(
