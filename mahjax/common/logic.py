@@ -320,9 +320,7 @@ def _prepare_next_round_assets(
     """Deal the next round's wall from ``rng`` (the key given to ``step``), for ``state``'s table."""
     config = _resolve_game_config(game_config)
     constants = state.constants
-    deck = Tile.from_tile_id_to_tile(
-        jax.random.permutation(rng, jnp.arange(constants.NUM_PHYSICAL_TILES))
-    ).astype(jnp.int8)
+    deck = Tile.from_tile_id_to_tile(jax.random.permutation(rng, constants.TILE_IDS)).astype(jnp.int8)
     deck = _apply_red_five_config(deck, game_config)
     init_hand_with_red = _deal_hands(deck, constants.NUM_PLAYERS)
     init_hand = jax.vmap(Hand.to_34)(init_hand_with_red)
@@ -484,7 +482,7 @@ def _apply_action(
     ron_state = _ron(state, game_config)
     tsumo_state = _tsumo(state, game_config)
     pon_state = _pon(state, action, game_config)
-    chi_state = _chi(state, action, game_config)
+    chi_state = _chi(state, action, game_config) if state.constants.HAS_CHI else state  # never legal without chi
     pass_state = _pass(state, game_config)
     prepared_next_round = _prepare_next_round_assets(state, key, game_config)
     special_next_round_state = _special_next_round(
@@ -838,7 +836,10 @@ def _mask_after_discard(
     cannot_meld = riichi | haitei
     cannot_kan = _kan_limit_reached(state)
     # CHI only from the player on the left, who discards just before.
-    chi_mask = _mask_for_chi(state, hand, tile) & ~cannot_meld & (src == state.constants.NUM_PLAYERS - 1)
+    if state.constants.HAS_CHI:
+        chi_mask = _mask_for_chi(state, hand, tile) & ~cannot_meld & (src == state.constants.NUM_PLAYERS - 1)
+    else:
+        chi_mask = state.constants.ZERO_MASK_1D
     pm_mask = _mask_for_pon_open_kan(state, hand, tile, cannot_kan) & ~cannot_meld
     can_ron = state.players.can_win[c_p, Tile.to_tile_type(tile)]
     has_yaku = state.players.has_yaku[c_p, CURRENT_TILE]

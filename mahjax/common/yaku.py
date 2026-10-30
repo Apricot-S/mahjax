@@ -10,7 +10,6 @@ import numpy as np
 
 from mahjax._src.types import Array
 
-from .constants import DORA_ARRAY
 from .hand import Hand
 from .meld import EMPTY_MELD, Meld
 from .tile import Tile
@@ -45,10 +44,12 @@ def _one_hot_at(x: Array, idx: Array) -> Array:
 
 
 def _dora_array_from_state(state: object) -> jnp.ndarray:
+    dora_of = state.constants.DORA_ARRAY  # the table's indicator-to-dora mapping
+
     def update_dora_counts(dora_counts: Array, dora_indicator: Array) -> Array:
         is_valid = dora_indicator != -1
         dora_tile_type = Tile.to_tile_type(dora_indicator)
-        return dora_counts.at[DORA_ARRAY[dora_tile_type]].add(is_valid)
+        return dora_counts.at[dora_of[dora_tile_type]].add(is_valid)
 
     dora_counts = jnp.zeros(Tile.NUM_TILE_TYPE, dtype=jnp.int8)
     dora_counts = jax.vmap(update_dora_counts, in_axes=(None, 0))(
