@@ -477,8 +477,8 @@ def _apply_action(
     riichi_state = _riichi(state)
     ron_state = _ron(state, game_config)
     tsumo_state = _tsumo(state, game_config)
-    pon_state = _pon(state, action)
-    chi_state = _chi(state, action)
+    pon_state = _pon(state, action, game_config)
+    chi_state = _chi(state, action, game_config)
     pass_state = _pass(state, game_config)
     prepared_next_round = _prepare_next_round_assets(key, game_config)
     special_next_round_state = _special_next_round(
@@ -551,7 +551,7 @@ def _draw(state: State, game_config: Optional[GameConfig] = None) -> State:
     - Update the furiten by pass
     - Update the is haitei flag
     """
-    state = _accept_riichi(state)
+    state = _accept_riichi(state, game_config)
     config = _resolve_game_config(game_config)
     c_p = state.current_player
     next_deck_ix = state.round_state.next_deck_ix - 1
@@ -785,7 +785,9 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
         is_four_kan_draw & no_ron_player,
         lambda: _trigger_special_abortive_draw(
             # A riichi declared on this discard stands, and its stick stays on the table.
-            _accept_riichi(_replace_state(state, last_player=jnp.int8(c_p), target=jnp.int8(tile)))
+            _accept_riichi(
+                _replace_state(state, last_player=jnp.int8(c_p), target=jnp.int8(tile)), game_config
+            )
         ),
         lambda: jax.lax.cond(
             no_meld_player | (is_abortive_draw_normal & no_ron_player),
@@ -982,16 +984,17 @@ def _append_meld(state: State, meld: Array, player: Array) -> State:
     return _replace_state(state, melds=melds, meld_counts=n_meld)  # type:ignore
 
 
-def _accept_riichi(state: State) -> State:
+def _accept_riichi(state: State, game_config: Optional[GameConfig] = None) -> State:
     """
     Accept the RIICHI
     - Set the RIICHI flag
     - Subtract the score of the player who accepted the RIICHI
     - Provide rewards
     - Update the kyotaku
-    - Set the Ippatsu flag
+    - Set the Ippatsu flag, if ippatsu is in play
     - Check if the player has Double Riichi
     """
+    config = _resolve_game_config(game_config)
     l_p = state.round_state.last_player
     already_riichi = state.players.riichi[l_p]  # Whether the player has already RIICHI
     has_l_p_riichi_declared = jnp.logical_and(
@@ -1005,7 +1008,9 @@ def _accept_riichi(state: State) -> State:
     )  # Rewards for the player who accepted the RIICHI
     _kyotaku = state.round_state.kyotaku + jnp.int8(has_l_p_riichi_declared)
     riichi = state.players.riichi.at[l_p].set(has_l_p_riichi_declared)
-    is_ippatsu = jnp.where(has_l_p_riichi_declared, TRUE, state.players.ippatsu[l_p])
+    is_ippatsu = jnp.where(
+        has_l_p_riichi_declared, TRUE if config.enable_ippatsu else FALSE, state.players.ippatsu[l_p]
+    )
 
     is_double_riichi = _is_uninterrupted_first_turn(state, state.round_state.next_deck_ix)
     is_double_riichi = jnp.where(
@@ -1185,7 +1190,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
     is_open_kan = action == Action.OPEN_KAN
     pon = state.players.pon[(c_p, Tile.to_tile_type(tile))]
     is_added_kan = pon != 0  # TODO: Is it correct?
-    open_kan_state = _open_kan(state)
+    open_kan_state = _open_kan(state, game_config)
     selfkan_state = _selfkan(state, action, is_added_kan)
     state = jax.lax.cond(
         is_open_kan,
@@ -1319,7 +1324,7 @@ def _clear_furiten_by_pass(state: State, c_p: Array) -> State:
     )
 
 
-def _open_kan(state: State):
+def _open_kan(state: State, game_config: Optional[GameConfig] = None):
     """
     Apply OPEN_KAN
     - Generate a meld from the target
@@ -1327,7 +1332,7 @@ def _open_kan(state: State):
     """
     c_p = state.current_player
     l_p = state.round_state.last_player
-    state = _accept_riichi(state)
+    state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
     src = (l_p - c_p) % 4
     meld = Meld.init(Action.OPEN_KAN, state.round_state.target, src)
@@ -1347,7 +1352,7 @@ def _open_kan(state: State):
     return _set_player_hand(state, c_p, hand_with_red_row)
 
 
-def _pon(state: State, action: Array):
+def _pon(state: State, action: Array, game_config: Optional[GameConfig] = None):
     """
     Apply PON
     - Generate a meld from the target
@@ -1356,7 +1361,7 @@ def _pon(state: State, action: Array):
     c_p = state.current_player
     l_p = state.round_state.last_player
     tar = state.round_state.target
-    state = _accept_riichi(state)
+    state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
     src = (l_p - c_p) % 4
     meld = Meld.init(action, tar, src)
@@ -1387,7 +1392,7 @@ def _pon(state: State, action: Array):
     return _set_player_hand(state, c_p, pon_hand)
 
 
-def _chi(state: State, action: Array):
+def _chi(state: State, action: Array, game_config: Optional[GameConfig] = None):
     """
     Apply CHI
     - Generate a meld from the target
@@ -1396,7 +1401,7 @@ def _chi(state: State, action: Array):
     c_p = state.current_player
     tar_p = state.round_state.last_player  # Absolute position
     tar = state.round_state.target
-    state = _accept_riichi(state)
+    state = _accept_riichi(state, game_config)
     state = _clear_furiten_by_pass(state, c_p)
     meld = Meld.init(action, tar, src=jnp.int32(3))
     state = _append_meld(state, meld, c_p)
@@ -1517,7 +1522,7 @@ def _pass(state: State, game_config: Optional[GameConfig] = None):
     return jax.lax.cond(
         is_four_kan_draw & ~is_post_ron & no_meld_player,
         # A riichi declared on that discard stands, and its stick stays on the table.
-        lambda: _trigger_special_abortive_draw(_accept_riichi(passed)),
+        lambda: _trigger_special_abortive_draw(_accept_riichi(passed, game_config)),
         lambda: passed,
     )
 

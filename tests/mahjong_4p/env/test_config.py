@@ -13,19 +13,21 @@ from mahjax.mahjong_4p.env import Mahjong4p
 from ..helpers import compiled_env
 
 
-def test_presets_turn_every_optional_rule_on_or_off() -> None:
+def test_presets_set_every_rule() -> None:
     assert GameConfig() == RED
     assert dataclasses.asdict(RED) == {
         "use_red_fives": True,
         "allow_double_ron": True,
         "enable_special_abortive_draw": True,
         "enable_pao": True,
+        "enable_ippatsu": True,
     }
     assert dataclasses.asdict(NO_RED) == {
         "use_red_fives": False,
         "allow_double_ron": False,
         "enable_special_abortive_draw": False,
         "enable_pao": False,
+        "enable_ippatsu": True,
     }
 
 

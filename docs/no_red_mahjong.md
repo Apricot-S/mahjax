@@ -19,7 +19,7 @@ env = Mahjong4p(round_mode="half", observe_type="dict", game_config=NO_RED)
 
 ## Rules
 
-`NO_RED` turns off every optional rule of `red_4p`:
+`NO_RED` turns off these optional rules of `red_4p`:
 
 - No red fives: every five is dealt as a plain five.
 - No double ron: the players who can ron a tile answer in turn order from the discarder, and the first RON ends the round, so one player wins it.
