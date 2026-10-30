@@ -33,8 +33,10 @@ from .constants import (
     FALSE,
     FIRST_DORA_INDICATOR_IX,
     FIRST_DRAW_IDX,
+    MIN_LIVE_DRAWS_FOR_RIICHI,
     NUM_PHYSICAL_TILES,
     NUM_PLAYERS,
+    RIICHI_BET_SCORE,
     RINSHAN_IX,
     SUDDEN_DEATH_ROUNDS,
     TARGET_SCORE,
@@ -633,7 +635,7 @@ def _mask_after_draw(
         & ~cannot_kan
     )(tile_types)
     mask = mask.at[Tile.NUM_TILE_TYPE_WITH_RED : Action.TSUMOGIRI].set(can_kan)
-    # 残りツモが 4 回**未満**のときは立直不可。この判定は宣言者の摸打**後**に
+    # 残りツモが ``MIN_LIVE_DRAWS_FOR_RIICHI`` 回**未満**のときは立直不可。この判定は宣言者の摸打**後**に
     # 山へ残る枚数で数える。normal draw ではこのマスクが next_deck_ix 減算前に
     # 作られる（摸った牌はもう手牌にある）ので残りは ``next - live_wall_end``
     # ちょうど——``visualization.remaining_tiles`` の ``next - last + 1``（局間
@@ -641,9 +643,9 @@ def _mask_after_draw(
     # mjai 互換エンジン（libriichi / riichienv）は全てそれをチョンボにする。
     if live_draws_left is None:
         live_draws_left = state.round_state.next_deck_ix - _live_wall_end_ix(state)
-    no_next_draw = live_draws_left < 4
+    no_next_draw = live_draws_left < MIN_LIVE_DRAWS_FOR_RIICHI
     # 供託を払えない持ち点 1000 点未満も立直不可（score は 100 点単位）。
-    cannot_afford_stick = state.round_state.score[c_p] < 10
+    cannot_afford_stick = state.round_state.score[c_p] < RIICHI_BET_SCORE
     can_riichi = jnp.where(
         state.players.riichi[c_p]
         | ~state.players.is_hand_concealed[c_p]
@@ -996,10 +998,10 @@ def _accept_riichi(state: State) -> State:
         jnp.logical_not(already_riichi), state.players.riichi_declared[l_p]
     )
     _score = state.round_state.score.at[l_p].add(
-        has_l_p_riichi_declared * -10
+        has_l_p_riichi_declared * -RIICHI_BET_SCORE
     )  # Subtract the score of the player who accepted the RIICHI
     rewards = (
-        jnp.zeros(4, dtype=jnp.float32).at[l_p].set(has_l_p_riichi_declared * -10)
+        jnp.zeros(NUM_PLAYERS, dtype=jnp.float32).at[l_p].set(has_l_p_riichi_declared * -RIICHI_BET_SCORE)
     )  # Rewards for the player who accepted the RIICHI
     _kyotaku = state.round_state.kyotaku + jnp.int8(has_l_p_riichi_declared)
     riichi = state.players.riichi.at[l_p].set(has_l_p_riichi_declared)
@@ -1092,7 +1094,7 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     def _after_open_or_added_kan(s: State) -> State:
         return _replace_state(
             s,
-            ippatsu=jnp.zeros(4, dtype=jnp.bool_),
+            ippatsu=jnp.zeros_like(s.players.ippatsu),
             can_after_kan=TRUE,
             n_kan=s.players.n_kan.at[c_p].add(1),
             kan_declared=FALSE,
@@ -1102,7 +1104,7 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     def _after_kan_dora_already_done(s: State) -> State:
         return _replace_state(
             s,
-            ippatsu=jnp.zeros(4, dtype=jnp.bool_),
+            ippatsu=jnp.zeros_like(s.players.ippatsu),
             can_after_kan=TRUE,
             n_kan=s.players.n_kan.at[c_p].add(1),
             kan_declared=FALSE,
@@ -1379,7 +1381,7 @@ def _pon(state: State, action: Array):
         legal_action_mask=legal_action_mask_4p,
         river=river,
         has_nagashi_mangan=state.players.has_nagashi_mangan.at[l_p].set(FALSE),
-        ippatsu=jnp.zeros(4, dtype=jnp.bool_),  # Disable Ippatsu
+        ippatsu=jnp.zeros_like(state.players.ippatsu),  # A call ends every ippatsu
         draw_next=FALSE,
     )
     return _set_player_hand(state, c_p, pon_hand)
@@ -1416,7 +1418,7 @@ def _chi(state: State, action: Array):
         legal_action_mask=legal_action_mask_4p,
         river=river,
         has_nagashi_mangan=state.players.has_nagashi_mangan.at[tar_p].set(FALSE),
-        ippatsu=jnp.zeros(4, dtype=jnp.bool_),  # Disable Ippatsu
+        ippatsu=jnp.zeros_like(state.players.ippatsu),  # A call ends every ippatsu
         draw_next=FALSE,
     )
     return _set_player_hand(state, c_p, chi_hand)

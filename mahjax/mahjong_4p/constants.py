@@ -24,6 +24,9 @@ NO_WINNER_NORMAL: Final[int] = 1
 
 # ``score`` is in units of 100 points, ``TARGET_POINTS`` in points.
 TARGET_SCORE: Final[int] = TARGET_POINTS // 100
+RIICHI_BET_SCORE: Final[int] = RIICHI_BET // 100
+# Riichi needs at least this many live-wall draws left after the declarer's.
+MIN_LIVE_DRAWS_FOR_RIICHI: Final[int] = 4
 SUDDEN_DEATH_ROUNDS: Final[int] = 4
 
 LEGAL_ACTION_SIZE: Final[int] = Action.NUM_ACTION
