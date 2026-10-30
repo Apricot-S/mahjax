@@ -222,11 +222,15 @@ def _is_four_wind_draw(state: State) -> Array:
     )
 
 
+def _kan_limit_reached(state: State) -> Array:
+    """The round's kans have reached ``MAX_KANS_PER_ROUND``: nobody may make another."""
+    return state.players.n_kan.sum() >= MAX_KANS_PER_ROUND
+
+
 def _is_four_kan_draw(state: State) -> Array:
     """四開槓: the round's kans have reached the limit, split between two or more players.
     One player's four kans are the four-kans yakuman instead."""
-    n_kan = state.players.n_kan
-    return (n_kan.sum() >= MAX_KANS_PER_ROUND) & ((n_kan > 0).sum() >= 2)
+    return _kan_limit_reached(state) & ((state.players.n_kan > 0).sum() >= 2)
 
 
 @jax.jit
@@ -624,7 +628,7 @@ def _mask_after_draw(
     tiles_ok = tiles_ok.at[new_tile].set(hand[c_p, new_tile] >= 2)
     mask = ZERO_MASK_1D.at[: Tile.NUM_TILE_TYPE_WITH_RED].set(tiles_ok)
     mask = mask.at[Action.TSUMOGIRI].set(TRUE)
-    cannot_kan = state.players.n_kan.sum() >= 4
+    cannot_kan = _kan_limit_reached(state)
     tile_types = jnp.arange(Tile.NUM_TILE_TYPE, dtype=jnp.int32)
     can_kan = jax.vmap(
         lambda tile_type: (
@@ -688,7 +692,7 @@ def _mask_after_draw_in_riichi(
     can_closed_kan = (
         Hand.can_closed_kan_after_riichi(hand[c_p], new_tile_type, state.players.can_win[c_p])
         & ~state.round_state.is_haitei
-        & ~(state.players.n_kan.sum() >= 4)  # riichi does not lift the four-kan limit
+        & ~_kan_limit_reached(state)  # riichi does not lift the kan limit
     )
     mask = mask.at[Tile.NUM_TILE_TYPE_WITH_RED + new_tile_type].set(can_closed_kan)
     mask = mask.at[Action.TSUMO].set(state.players.can_win[c_p, new_tile_type])
@@ -833,9 +837,7 @@ def _mask_after_discard(
     discarder = state.current_player
     src = (discarder - c_p) % 4
     cannot_meld = riichi | haitei
-    cannot_kan = (
-        state.players.n_kan.sum() >= 4
-    )  # If the number of kan is 4 or more, cannot play OPEN_KAN
+    cannot_kan = _kan_limit_reached(state)
     chi_mask = (
         _mask_for_chi(hand, tile) & ~cannot_meld & (src == 3)
     )  # Cannot play CHI from the player who is not the upper player
@@ -1200,7 +1202,8 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
     # Apply KAN action to hand, meld, river
     is_open_kan = action == Action.OPEN_KAN
     pon = state.players.pon[(c_p, Tile.to_tile_type(tile))]
-    is_added_kan = pon != 0  # TODO: Is it correct?
+    # A self kan of a type the player has ponned can only add to that pon.
+    is_added_kan = pon != 0
     open_kan_state = _open_kan(state, game_config)
     selfkan_state = _selfkan(state, action, is_added_kan)
     state = jax.lax.cond(
@@ -1223,7 +1226,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
         face_down.dora_indicators,
         face_down.ura_dora_indicators,
         use_red_fives=config.use_red_fives,
-    )  # (4, 2); the RON half only matters for a robbed added kan
+    )  # The CURRENT_TILE column only matters for a robbed added kan
     state = _replace_state(state, 
         has_yaku=has_yaku,
         fan=fan,
