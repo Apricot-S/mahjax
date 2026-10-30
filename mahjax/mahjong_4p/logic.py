@@ -320,13 +320,14 @@ def _prepare_next_round_assets(
     game_config: Optional[GameConfig] = None,
 ) -> Tuple[Array, Array, Array, Array, Array]:
     """Deal the next round's wall from ``rng`` (the key given to ``step``)."""
+    config = _resolve_game_config(game_config)
     deck = Tile.from_tile_id_to_tile(jax.random.permutation(rng, jnp.arange(NUM_PHYSICAL_TILES))).astype(jnp.int8)
     deck = _apply_red_five_config(deck, game_config)
     init_hand_with_red = _deal_hands(deck)
     init_hand = jax.vmap(Hand.to_34)(init_hand_with_red)
     face_down = jnp.full(MAX_DORA_INDICATORS, SENTINEL_TILE_ID, dtype=jnp.int8)
     dora_indicators = face_down.at[0].set(deck[_dora_indicator_ix(0)])
-    ura_dora_indicators = face_down.at[0].set(deck[_ura_dora_indicator_ix(0)])
+    ura_dora_indicators = face_down.at[0].set(deck[_ura_dora_indicator_ix(0)]) if config.enable_ura_dora else face_down
     can_ron = v_can_win(init_hand, TILE_RANGE)
     return deck, dora_indicators, ura_dora_indicators, init_hand_with_red, can_ron
 
@@ -706,7 +707,7 @@ def _discard(state: State, tile: Array, game_config: Optional[GameConfig] = None
     - Check if the game is ended (abortive_draw_normal (流局))
     """
     # An open or added kan's new indicator turns over with the kanner's discard, so a ron on it counts.
-    state = _reveal_pending_kan_dora(state)
+    state = _reveal_pending_kan_dora(state, game_config)
     c_p = state.current_player
     config = _resolve_game_config(game_config)
     had_after_kan = state.round_state.can_after_kan
@@ -1049,7 +1050,7 @@ def _is_furiten(state: State) -> Array:
     return state.players.furiten_by_discard | state.players.furiten_by_pass
 
 
-def _reveal_pending_kan_dora(state: State) -> State:
+def _reveal_pending_kan_dora(state: State, game_config: Optional[GameConfig] = None) -> State:
     """
     Turn over the new indicator of an open or added kan if it is still face down
     - A closed kan turns its indicator over at once in ``_kan``
@@ -1057,23 +1058,28 @@ def _reveal_pending_kan_dora(state: State) -> State:
     """
     return jax.lax.cond(
         state.round_state.n_kan_doras.astype(jnp.int32) < state.players.n_kan.sum().astype(jnp.int32),
-        _turn_over_kan_dora,
+        lambda s: _turn_over_kan_dora(s, game_config),
         lambda s: s,
         state,
     )
 
 
-def _turn_over_kan_dora(state: State) -> State:
-    """Turn over the next kan-dora indicator; its ura dora is the tile below it."""
+def _turn_over_kan_dora(state: State, game_config: Optional[GameConfig] = None) -> State:
+    """Turn over the next kan-dora indicator; its ura dora is the tile below it.
+    ``n_kan_doras`` counts the kans whose indicator is due even when kan dora or ura
+    dora is not in play, and then the indicator stays face down."""
+    config = _resolve_game_config(game_config)
     k = state.round_state.n_kan_doras + 1
-    return _replace_state(
-        state,
-        n_kan_doras=k,
-        dora_indicators=state.round_state.dora_indicators.at[k].set(state.round_state.deck[_dora_indicator_ix(k)]),
-        ura_dora_indicators=state.round_state.ura_dora_indicators.at[k].set(
-            state.round_state.deck[_ura_dora_indicator_ix(k)]
-        ),
-    )
+    updates = {"n_kan_doras": k}
+    if config.enable_kan_dora:
+        updates["dora_indicators"] = state.round_state.dora_indicators.at[k].set(
+            state.round_state.deck[_dora_indicator_ix(k)]
+        )
+        if config.enable_ura_dora:
+            updates["ura_dora_indicators"] = state.round_state.ura_dora_indicators.at[k].set(
+                state.round_state.deck[_ura_dora_indicator_ix(k)]
+            )
+    return _replace_state(state, **updates)
 
 
 def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
@@ -1092,7 +1098,7 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     """
     # A previous open or added kan's indicator turns over just before this rinshan draw,
     # once no one has robbed the added kan that led here (see ``_kan``).
-    state = _reveal_pending_kan_dora(state)
+    state = _reveal_pending_kan_dora(state, game_config)
     c_p = state.current_player
     config = _resolve_game_config(game_config)
     n_kan = state.players.n_kan.sum()
@@ -1173,7 +1179,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
     # scored, and seen, with the indicator still face down (tenhou: "明槓/加槓は後めくり
     # （打牌または続く嶺上の直前）"); ``_draw_rinshan`` turns it over if nobody robs.
     face_down = state.round_state
-    state = _reveal_pending_kan_dora(state)
+    state = _reveal_pending_kan_dora(state, game_config)
     c_p = state.current_player
     config = _resolve_game_config(game_config)
     self_kan_tile_type = action - Tile.NUM_TILE_TYPE_WITH_RED
@@ -1206,7 +1212,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
     is_closed_kan = (~is_open_kan) & (~is_added_kan)
     state = jax.lax.cond(
         is_closed_kan,
-        lambda s: _replace_state(_turn_over_kan_dora(s), last_deck_ix=s.round_state.last_deck_ix + 1),
+        lambda s: _replace_state(_turn_over_kan_dora(s, game_config), last_deck_ix=s.round_state.last_deck_ix + 1),
         lambda s: s,
         state,
     )
