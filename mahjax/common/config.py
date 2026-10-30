@@ -15,6 +15,7 @@ class GameConfig:
     allow_double_ron: bool = True
     enable_special_abortive_draw: bool = True
     enable_pao: bool = True
+    enable_ippatsu: bool = True
 
     def __post_init__(self) -> None:
         for field in dataclasses.fields(self):

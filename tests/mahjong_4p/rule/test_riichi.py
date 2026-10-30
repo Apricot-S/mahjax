@@ -4,9 +4,17 @@ import jax
 import jax.numpy as jnp
 
 from mahjax.common.action import Action
+from mahjax.common.config import GameConfig
 from mahjax.common.hand import Hand
 from mahjax.common.tile import Tile
-from mahjax.mahjong_4p.logic import _draw_rinshan, _init, _mask_after_draw, _mask_after_draw_in_riichi, _replace_state
+from mahjax.mahjong_4p.logic import (
+    _accept_riichi,
+    _draw_rinshan,
+    _init,
+    _mask_after_draw,
+    _mask_after_draw_in_riichi,
+    _replace_state,
+)
 from mahjax.mahjong_4p.state import default_state
 
 from ..helpers import _post_ankan_state
@@ -160,3 +168,16 @@ def test_riichi_closed_kan_is_not_offered_once_four_kans_are_on_the_table() -> N
         mask = _mask_after_draw_in_riichi(at_kans, hand, jnp.int8(0), jnp.int8(0))
 
         assert bool(mask[Tile.NUM_TILE_TYPE_WITH_RED + 0]) == offered
+
+
+def test_riichi_without_ippatsu_still_stands_but_sets_no_ippatsu() -> None:
+    state = _init(jax.random.PRNGKey(0))
+    declared = _replace_state(
+        state, last_player=jnp.int8(2), riichi_declared=state.players.riichi_declared.at[2].set(True)
+    )
+    on = _accept_riichi(declared)
+    off = _accept_riichi(declared, GameConfig(enable_ippatsu=False))
+    assert bool(on.players.riichi[2]) and bool(off.players.riichi[2])
+    assert int(off.round_state.kyotaku) == int(on.round_state.kyotaku) == int(state.round_state.kyotaku) + 1
+    assert bool(on.players.ippatsu[2])
+    assert not bool(off.players.ippatsu.any())
