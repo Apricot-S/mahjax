@@ -24,8 +24,7 @@ import pytest
 
 from mahjax.common.shanten import Shanten
 from mahjax.mahjong_4p.constants import MAX_DORA_INDICATORS
-from mahjax.mahjong_4p.env import _observe_dict
-from mahjax.mahjong_4p.observation import _observe_privileged_dict
+from mahjax.mahjong_4p.observation import _observe_dict, _observe_privileged_dict
 
 from ..helpers import compiled_env
 
