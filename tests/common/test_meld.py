@@ -1,5 +1,3 @@
-import jax.numpy as jnp
-
 from mahjax.common.action import Action
 from mahjax.common.meld import Meld
 from mahjax.common.tile import Tile

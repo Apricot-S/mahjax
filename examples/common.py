@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Any, Callable, Dict
 
-
 EXAMPLES_DIR = Path(__file__).resolve().parent
 OFFLINE_DATA_DIR = EXAMPLES_DIR / "offline_data"
 PARAMS_DIR = EXAMPLES_DIR / "params"

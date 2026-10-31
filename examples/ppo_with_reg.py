@@ -3,32 +3,32 @@ PPO with Regularization trainer for MahJax.
 (Refactored to separate Rollout / Data Prep / Update steps)
 """
 
+import os
+import pickle
 import sys
 import time
-import os
-from typing import Dict, Literal, NamedTuple, Any, Optional
-import pickle
+from typing import Dict, Literal, NamedTuple, Optional
 
-import jax
-from jax import lax
-import jax.numpy as jnp
-import flax.linen as nn
-from flax.training.train_state import TrainState
-import optax
-from omegaconf import OmegaConf
-from pydantic import BaseModel
 import distrax
+import flax.linen as nn
+import jax
+import jax.numpy as jnp
+import optax
 import wandb
-
-import mahjax
-from mahjax.wrappers.auto_reset_wrapper import auto_reset
 from bc import visualize_game
 from common import (
     default_bc_params_path,
     default_rl_params_path,
     get_network_cls,
 )
+from flax.training.train_state import TrainState
+from jax import lax
+from omegaconf import OmegaConf
+from pydantic import BaseModel
 from utils import make_eval_fn
+
+import mahjax
+from mahjax.wrappers.auto_reset_wrapper import auto_reset
 
 # Constants
 MAX_REWARD = 320.0  # Normalization factor for reward

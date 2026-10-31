@@ -8,7 +8,6 @@ from jax import lax
 
 from mahjax.core import Env
 
-
 NEG = -1e9
 STARTING_SCORE = 250  # init score in mahjax (1 unit = 100 points)
 

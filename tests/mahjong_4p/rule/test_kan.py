@@ -448,8 +448,8 @@ def test_red_added_kan_hides_whether_anyone_could_rob_it() -> None:
 
 def test_red_robbing_kan_on_a_red_five_keeps_the_red_dora() -> None:
     """A chankan must score and report the robbed five's redness."""
-    from mahjax.common.meld import Meld as RedMeld
     from mahjax.common.config import GameConfig as RedGameConfig  # noqa: F401
+    from mahjax.common.meld import Meld as RedMeld
 
     five_p, red_five_p = 13, Tile.RED_FIVE["p"]
 

@@ -6,17 +6,12 @@ Uses only the Actor head (policy_extractor + policy_mlp).
 import os
 import pickle
 from dataclasses import dataclass
+
 import jax
 import jax.numpy as jnp
 import numpy as np
-import wandb
 import optax
-from flax.training.train_state import TrainState
-from omegaconf import OmegaConf
-from tqdm import tqdm
-
-import mahjax
-from mahjax.ui import save_html
+import wandb
 from common import (
     FIG_DIR,
     default_bc_params_path,
@@ -24,6 +19,13 @@ from common import (
     get_network_cls,
     get_rule_based_player,
 )
+from flax.training.train_state import TrainState
+from omegaconf import OmegaConf
+from tqdm import tqdm
+
+import mahjax
+from mahjax.ui import save_html
+
 
 @dataclass
 class TrainConfig:

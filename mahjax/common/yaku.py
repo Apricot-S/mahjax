@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Optional, Tuple
 import importlib.resources as resources
+from typing import Optional, Tuple
 
 import jax
 import jax.numpy as jnp

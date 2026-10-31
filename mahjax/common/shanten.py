@@ -13,8 +13,6 @@
 # limitations under the License.
 
 
-from pathlib import Path
-from typing import Tuple
 import importlib.resources as resources
 
 import jax

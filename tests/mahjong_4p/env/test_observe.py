@@ -1,5 +1,5 @@
-import numpy as np
 import jax.numpy as jnp
+import numpy as np
 
 from mahjax.common.action import Action
 from mahjax.common.meld import Meld
@@ -7,7 +7,6 @@ from mahjax.common.shanten import Shanten
 from mahjax.common.tile import River, Tile
 from mahjax.mahjong_4p.observation import _observe_dict
 from mahjax.mahjong_4p.state import default_state
-
 
 HAND_END = 7
 GAME_END = HAND_END + 15

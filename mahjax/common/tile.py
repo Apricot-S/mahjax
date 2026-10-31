@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-import jax
 import jax.numpy as jnp
 
 from mahjax._src.types import Array

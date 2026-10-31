@@ -20,9 +20,9 @@ import jax
 import jax.numpy as jnp
 
 from mahjax._src.types import Array, PRNGKey
+from mahjax.common import logic as common_logic
 from mahjax.common.config import GameConfig
 from mahjax.common.constants import TRUE
-from mahjax.common import logic as common_logic
 from mahjax.common.logic import _init, _replace_state, _start_next_round_or_end_game
 from mahjax.core import Env
 

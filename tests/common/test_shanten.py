@@ -1,12 +1,12 @@
+import json
 import unittest
+from pathlib import Path
 
 import jax
 import jax.numpy as jnp
-import json
-from pathlib import Path
+import numpy as np
 
 from mahjax.common.shanten import Shanten
-import numpy as np
 
 jitted_number = jax.jit(Shanten.number)
 

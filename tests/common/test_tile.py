@@ -1,8 +1,9 @@
 import unittest
+
 import jax.numpy as jnp
 
 from mahjax.common.action import Action
-from mahjax.common.tile import Tile, River, EMPTY_RIVER
+from mahjax.common.tile import EMPTY_RIVER, River, Tile
 
 
 class TestTile(unittest.TestCase):

@@ -9,7 +9,6 @@ from mahjax.mahjong_4p.state import default_state
 
 from ..helpers import STEP_KEY, compiled_env
 
-
 # ----------------- round_end tests -----------------
 
 
