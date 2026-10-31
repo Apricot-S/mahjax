@@ -238,3 +238,24 @@ def make(env_id: EnvId, **kwargs) -> "Union[Mahjong4p, Mahjong3p]":  # noqa: C90
         raise ValueError(
             f"Wrong env_id '{env_id}' is passed. Available ids are: \n{available_envs()}"
         )
+
+
+def rule_based_player(state: Any, rng: PRNGKey) -> Array:
+    """The rule-based player of the state's table.
+
+    Each table has its own, in ``mahjax.mahjong_4p.players`` and
+    ``mahjax.mahjong_3p.players``; this picks the one for ``state``, so one jitted
+    function plays either env.
+
+    !!! example "Example usage"
+
+        ```py
+        act = jax.jit(mahjax.rule_based_player)
+        action = act(state, jax.random.PRNGKey(0))
+        ```
+    """
+    if state.constants.NUM_PLAYERS == 3:
+        from mahjax.mahjong_3p.players import rule_based_player as play
+    else:
+        from mahjax.mahjong_4p.players import rule_based_player as play
+    return play(state, rng)

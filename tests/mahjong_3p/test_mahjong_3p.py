@@ -219,3 +219,30 @@ def test_random_games_end_with_the_points_intact() -> None:
     state = jax.vmap(play)(jax.random.split(jax.random.PRNGKey(4), 2))
     assert bool(state.terminated.all())
     assert state.round_state.score.sum(axis=1).tolist() == [1050] * 2
+
+
+def test_the_rule_based_player_plays_legally_and_sets_every_north_aside() -> None:
+    env, _, _ = _env()
+
+    @jax.jit
+    def play(key):
+        def body(carry, k):
+            state, illegal, missed, kitas = carry
+            k1, k2 = jax.random.split(k)
+            action = mahjax.rule_based_player(state, k1)
+            live, mask = ~state.terminated, state.legal_action_mask
+            illegal = illegal | (live & ~mask[action])
+            # A north goes aside whenever it may, unless the hand can win.
+            missed = missed | (live & mask[KITA_ACTION] & ~mask[Action.TSUMO] & (action != KITA_ACTION))
+            kitas = kitas + (live & (action == KITA_ACTION))
+            return (env.step(state, action, k2), illegal, missed, kitas), None
+
+        carry = (env.init(key), jnp.bool_(False), jnp.bool_(False), jnp.int32(0))
+        (state, illegal, missed, kitas), _ = jax.lax.scan(body, carry, jax.random.split(key, 1500))
+        return state, illegal, missed, kitas
+
+    state, illegal, missed, kitas = jax.vmap(play)(jax.random.split(jax.random.PRNGKey(5), 2))
+    assert bool(state.terminated.all())
+    assert not bool(illegal.any()) and not bool(missed.any())
+    assert int(kitas.sum()) > 0
+    assert state.round_state.score.sum(axis=1).tolist() == [1050] * 2
