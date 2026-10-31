@@ -6,6 +6,12 @@ from mahjax.common.meld import Meld
 from mahjax.common.tile import River, Tile
 from mahjax.common.yaku import Yaku
 from mahjax.core import Env, EnvId, available_envs, make, rule_based_player
+
+# rule_based_player imports these lazily, so they are imported here, before anything
+# is traced: their constants are jnp arrays, and a module first imported inside a
+# trace keeps that trace's tracers, which the next trace trips over.
+from mahjax.mahjong_3p import players as _players_3p  # noqa: F401
+from mahjax.mahjong_4p import players as _players_4p  # noqa: F401
 from mahjax.mahjong_4p.config import NO_RED, RED
 from mahjax.mahjong_4p.state import State, default_state
 
