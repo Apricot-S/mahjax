@@ -7,7 +7,6 @@ import jax.numpy as jnp
 
 from mahjax._src.struct import dataclass
 from mahjax.common.constants import (
-    COPIES_PER_TILE,
     MAX_HAND_TILES,
     MAX_MELDS_PER_PLAYER,
     NUM_TILE_TYPES,

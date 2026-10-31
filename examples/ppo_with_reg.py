@@ -7,7 +7,7 @@ import os
 import pickle
 import sys
 import time
-from typing import Any, Dict, Literal, NamedTuple, Optional
+from typing import Dict, Literal, NamedTuple, Optional
 
 import distrax
 import flax.linen as nn
