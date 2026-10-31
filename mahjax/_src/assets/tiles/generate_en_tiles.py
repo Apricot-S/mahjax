@@ -36,19 +36,6 @@ MOTIF_PAD_RATIO = 0.045
 MOTIF_MIN_PAD = 0.16
 
 
-def read_svg(name: str):
-    text = (JA / name).read_text()
-    view_box = re.search(r'viewBox="([^"]+)"', text).group(1)
-    group_open = re.search(r"(<g[^>]*>)", text).group(1)
-    path_d = re.search(r'<path d="([^"]+)"', text).group(1)
-    return text, view_box, group_open, path_d
-
-
-def split_subpaths(path_d: str) -> list[str]:
-    parts = path_d.split(" M ")
-    return [part if index == 0 else "M " + part for index, part in enumerate(parts)]
-
-
 def bbox_for_path(path_d: str) -> tuple[float, float, float, float]:
     token_re = re.compile(r"[A-Z]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?")
     tokens = token_re.findall(path_d)
@@ -130,7 +117,7 @@ def label_for(name: str) -> tuple[str, str]:
     return number, SUIT_COLORS[suit]
 
 
-def build_motif_markup(name: str, border_parts: set[str]) -> str:
+def build_motif_markup(name: str) -> str:
     text = (JA / name).read_text()
     # The masks colorize.py cuts a face's accent colours with; the accent paths
     # below still point at them by id.
@@ -141,58 +128,35 @@ def build_motif_markup(name: str, border_parts: set[str]) -> str:
         kept_tags = []
         for tag in re.findall(r"<path\b[^>]*>", group_body):
             path_d = re.search(r'\sd="([^"]+)"', tag).group(1)
-            kept = [part for part in split_subpaths(path_d) if part not in border_parts]
-            if kept:
-                # Only the frame is dropped: the path keeps its own colour and mask.
-                attrs = re.sub(r'\s(?:d|vector-effect)="[^"]*"', "", tag[len("<path"):]).rstrip("/>").rstrip()
-                kept_tags.append(
-                    f'<path d="{" ".join(kept)}"{attrs} vector-effect="non-scaling-stroke"/>'
-                )
+            # The path keeps its own colour and mask.
+            attrs = re.sub(r'\s(?:d|vector-effect)="[^"]*"', "", tag[len("<path"):]).rstrip("/>").rstrip()
+            kept_tags.append(f'<path d="{path_d}"{attrs} vector-effect="non-scaling-stroke"/>')
         if kept_tags:
             chunks.append(f"{group_open}{''.join(kept_tags)}</g>")
     return defs + "".join(chunks)
 
 
 def main() -> None:
-    _, _, frame_group_open, white_path = read_svg("white.svg")
-    standard_border_parts = set(split_subpaths(white_path))
-    white_frame = (JA / "white.svg").read_text()
-    frame_path = re.search(r'<path d="([^"]+)"', white_frame).group(1)
-
-    _, _, _, red_path = read_svg("rd.svg")
-    large_border_parts = set(split_subpaths(red_path)[:2])
-
     EN.mkdir(exist_ok=True)
 
     for src in sorted(JA.glob("*.svg")):
         name = src.name
         if re.fullmatch(r"[1-46-9][mps]r\.svg", name):
             continue
-        if name in {"back.svg", "b.svg"}:
+        if name in {"back.svg", "b.svg", "white.svg"}:
             (EN / name).write_text(src.read_text())
-            continue
-        if name == "white.svg":
-            (EN / name).write_text(white_frame)
             continue
         if name == "oya.svg":
             out = (
                 '<svg width="58" height="83" viewBox="0 0 29 41.5" '
                 'xmlns="http://www.w3.org/2000/svg">'
-                f'{frame_group_open}<path d="{frame_path}" '
-                'vector-effect="non-scaling-stroke"/></g>'
                 '<text x="14.5" y="23.7" text-anchor="middle" '
                 f'{TEXT_STYLE} fill="#111111">D</text></svg>'
             )
             (EN / name).write_text(out)
             continue
 
-        _, view_box, _, _ = read_svg(name)
-        border_parts = (
-            standard_border_parts
-            if view_box == "0 0 29 41.5"
-            else large_border_parts
-        )
-        motif_markup = build_motif_markup(name, border_parts)
+        motif_markup = build_motif_markup(name)
         label, color = label_for(name)
         text_svg = (
             f'<text x="{TEXT_X}" y="{TEXT_Y}" {TEXT_STYLE} fill="{color}">{label}</text>'
@@ -227,8 +191,6 @@ def main() -> None:
         out = (
             '<svg width="58" height="83" viewBox="0 0 29 41.5" '
             'xmlns="http://www.w3.org/2000/svg">'
-            f'{frame_group_open}<path d="{frame_path}" '
-            'vector-effect="non-scaling-stroke"/></g>'
             f"{text_svg}{motif_svg}</svg>"
         )
         (EN / name).write_text(out)
