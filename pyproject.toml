@@ -57,7 +57,8 @@ dev = [
 ]
 lint = [
     "blackdoc>=0.3.9",
-    "ruff>=0.14.11",
+    # Pinned: CI installs this group, and Ruff's minor releases add and change rules.
+    "ruff==0.17.3",
 ]
 typing = [
     "mypy>=1.19.1",
