@@ -48,7 +48,7 @@ const TEXT = {
     },
     round: (wind, n) => `${wind}${n}局`,
     honba: (n) => ` ${n}本場`,
-    sticks: (honba, kyotaku) => `${honba}本場 ・ 供託 ${kyotaku}`,
+    sticks: (honba, kyotaku) => `${honba}本場　供託 ${kyotaku}`,
     remaining: (n) => `残り ${n}`,
     deal: "配牌",
     sep: " ・ ",
@@ -99,7 +99,7 @@ const TEXT = {
     },
     round: (wind, n) => `${wind} ${n}`,
     honba: (n) => `, honba ${n}`,
-    sticks: (honba, kyotaku) => `Honba ${honba} · Sticks ${kyotaku}`,
+    sticks: (honba, kyotaku) => `Honba ${honba}\u2003Sticks ${kyotaku}`,
     remaining: (n) => `Wall ${n}`,
     deal: "Deal",
     sep: " · ",
@@ -552,7 +552,7 @@ function renderCenter(v, vp) {
 
   const dora = div("dora");
   for (const marker of v.round.dora) {
-    dora.append(marker === null ? tileImg(null, "face-down") : tileImg(marker));
+    dora.append(tileImg(marker));
   }
   info.append(dora);
   el.center.append(info);
@@ -565,10 +565,11 @@ function renderCenter(v, vp) {
       abs === v.dealer ? "seat-wind dealer" : "seat-wind",
       say("windMarks")[seat.wind]
     );
+    if (abs === v.current) windBadge.classList.add("turn");
     layer.append(windBadge);
     const plate = div("plate");
-    if (abs === v.current) plate.classList.add("turn");
-    plate.append(div("score", seat.score.toLocaleString()));
+    // Points are written as a table writes them, 25000, with no separator; the results too.
+    plate.append(div("score", String(seat.score)));
     if (seat.riichi !== "none") plate.append(div("stick"));
     layer.append(plate);
     el.center.append(layer);
@@ -874,10 +875,10 @@ function standingsTable(v, r) {
     const who = document.createElement("td");
     who.textContent = `${say("windMarks")[v.seats[seat].wind]} ${seatLabel(seat)}`;
     const score = document.createElement("td");
-    score.textContent = r.scores[seat].toLocaleString();
+    score.textContent = String(r.scores[seat]);
     const delta = document.createElement("td");
     const value = r.deltas[seat];
-    delta.textContent = (value > 0 ? "+" : "") + value.toLocaleString();
+    delta.textContent = (value > 0 ? "+" : "") + value;
     delta.className = value > 0 ? "plus" : value < 0 ? "minus" : "";
     row.append(who, score, delta);
     table.append(row);
@@ -888,7 +889,7 @@ function standingsTable(v, r) {
 function winnerBlock(v, w) {
   const box = div("winner");
   const from = w.from === null ? null : seatLabel(w.from);
-  box.append(div(null, say("winLine", seatLabel(w.seat), from, w.points.toLocaleString())));
+  box.append(div(null, say("winLine", seatLabel(w.seat), from, w.points)));
 
   const tiles = div("tiles");
   for (const tile of w.hand) tiles.append(tileImg(tile));
@@ -953,8 +954,8 @@ function showFinal(v) {
   table.append(head);
   for (const entry of rows) {
     const row = document.createElement("tr");
-    const cells = [say("rankOf", entry.rank), seatLabel(entry.seat), entry.score.toLocaleString()];
-    if (hasUma) cells.push((entry.uma > 0 ? "+" : "") + entry.uma.toLocaleString());
+    const cells = [say("rankOf", entry.rank), seatLabel(entry.seat), String(entry.score)];
+    if (hasUma) cells.push((entry.uma > 0 ? "+" : "") + entry.uma);
     cells.forEach((text, col) => {
       const td = document.createElement("td");
       td.textContent = text;

@@ -20,9 +20,10 @@
 The faces are drawn as one ``<path>`` holding every subpath: the rounded frame
 (an outer rectangle and an inset one, filled evenodd so only the ring shows)
 followed by the character. One path means one colour, which is why the whole
-set reads as black on white. Splitting the frame from the character lets the
-character take the suit's colour while the frame stays ink, and a manzu tile
-can keep a black numeral above its red 萬 the way a real tile does.
+set reads as black on white. Splitting the character by colour lets it take the
+suit's colour, and a manzu tile can keep a black numeral above its red 萬 the
+way a real tile does. The frame is left out: the UI draws the tile's face and
+its edge itself.
 
 A pin or sou face is not one colour either. It takes its suit's colour, and the
 parts a real set paints otherwise are laid over it: the red centre of 1p, 3p and
@@ -50,13 +51,11 @@ from typing import Dict, List, Sequence, Tuple, Union
 
 HERE = Path(__file__).resolve().parent
 
-#: The frame is drawn in ink whatever the face says, so a red five reads as a
-#: red character and not as a red tile.
-FRAME = "#000"
+INK = "#000"  # a manzu numeral, 東南西北, and the peacock's body
 RED = "#c62828"  # 萬, 中, the red fives, and the red pips and sticks
 GREEN = "#16703c"  # bamboo, and 發
 BLUE = "#1f3f99"  # the circles of a pin tile
-SUIT = {"m": FRAME, "p": BLUE, "s": GREEN}
+SUIT = {"m": INK, "p": BLUE, "s": GREEN}
 
 #: Backs and the dealer marker are not faces and keep the colour they have.
 SKIP = {"b.svg", "back.svg", "oya.svg"}
@@ -120,7 +119,7 @@ ACCENTS: Dict[str, Tuple[Tuple[str, Tuple[Region, ...]], ...]] = {
     "6p": ((RED, _LOWER_BLOCK),),
     "7p": ((RED, _LOWER_BLOCK + (Side(21.25, 17.25, 18.5, 24.75),)),),  # the last blue pip overlaps the block
     "9p": ((RED, (Circle(7.5, 20.75, 4.3), Circle(14.5, 20.75, 4.3), Circle(21.5, 20.75, 4.3))),),
-    "1s": ((FRAME, (Outline(14.5, 28.0),)), (RED, (Outline(11.45, 34.6), Outline(15.5, 34.6)))),
+    "1s": ((INK, (Outline(14.5, 28.0),)), (RED, (Outline(11.45, 34.6), Outline(15.5, 34.6)))),
     "5s": ((RED, (Outline(14.5, 20.5),)),),
     "7s": ((RED, (Outline(14.5, 8.3),)),),
     "9s": ((RED, (Outline(14.5, 8.3), Outline(14.5, 20.5), Outline(14.5, 32.7))),),
@@ -208,7 +207,7 @@ def _glyph_colour(name: str, subpath: str, height: float) -> str:
         return RED if below else SUIT["m"]
     if suit in SUIT and stem[:-1].isdigit():
         return SUIT[suit]
-    return FRAME  # 東南西北 and the blank 白
+    return INK  # 東南西北
 
 
 def _enclosing(glyph: Sequence[str], x: float, y: float) -> str:
@@ -267,7 +266,7 @@ def _path(d: str, colour: str, extra: str = "") -> str:
 
 
 def paint(path: Path) -> bool:
-    """Rewrite one tile with a frame path, one path per glyph colour, and its accents."""
+    """Rewrite one tile as one path per glyph colour and its accents, without the frame."""
     svg = path.read_text(encoding="utf-8")
     ds = _face_ds(svg)
     if not ds:
@@ -275,11 +274,12 @@ def paint(path: Path) -> bool:
     _, _, width, height = _view_box(svg)
     subs = _subpaths(" ".join(ds))
     frame = _frame_indices(subs, width, height)
-    if len(frame) != 2:
-        raise ValueError(f"{path.name}: found {len(frame)} frame subpaths, wanted 2")
+    # A face painted before has no frame left to find.
+    if len(frame) not in (0, 2):
+        raise ValueError(f"{path.name}: found {len(frame)} frame subpaths, wanted 2 (or none once painted)")
 
     glyph = [sub for i, sub in enumerate(subs) if i not in frame]
-    by_colour: Dict[str, List[str]] = {FRAME: [subs[i] for i in frame]}
+    by_colour: Dict[str, List[str]] = {}
     for sub in glyph:
         by_colour.setdefault(_glyph_colour(path.name, sub, height), []).append(sub)
 
@@ -297,7 +297,7 @@ def paint(path: Path) -> bool:
         every = [region for _, regions in accented for region in regions]
         masks.insert(0, _mask("base", every, glyph, width, height, invert=True))
         base = ' mask="url(#base)"'
-    suit_colour = SUIT.get(path.name[:-4][-1], FRAME)
+    suit_colour = SUIT.get(path.name[:-4][-1], INK)
 
     head = re.sub(r"<defs>.*?</defs>", "", svg[: svg.index("<g")], flags=re.DOTALL)
     defs = f"<defs>{''.join(masks)}</defs>" if masks else ""
@@ -306,7 +306,7 @@ def paint(path: Path) -> bool:
     # which copies this tag into the English set, keeps producing what it did.
     group = re.search(r"<g[^>]*>", svg).group(0)
     body = "".join(
-        _path(" ".join(parts), colour, base if colour == suit_colour and colour != FRAME else "")
+        _path(" ".join(parts), colour, base if colour == suit_colour else "")
         for colour, parts in by_colour.items()
     )
     path.write_text(f"{head}{defs}{group}{body}{''.join(accents)}</g></svg>", encoding="utf-8")
