@@ -30,14 +30,14 @@ The menu's **新規対局** section sets up a game:
 - **Seed:** leave it empty for a random wall.
 - **Name**, and whether to **save the record**.
 
-The board offers only legal actions, so every move you make is valid. Calls, riichi and wins appear as buttons next to your hand.
+The board offers only legal actions, so every move you make is valid. Calls, riichi and wins appear as buttons next to your hand. Seats are labelled by their index in the env, Player 0 to Player 3.
 
 These settings change during a game:
 
 - hide the opponents' hands;
 - **no calls**: pass every call offer automatically, but still offer ron;
 - the delay between agent moves;
-- the language.
+- the language: 日本語, or English, which also switches to tiles with English labels.
 
 A round ends with a summary of the winners, yaku, han and fu, and the score changes. The han add up to the points the env paid.
 

@@ -146,6 +146,11 @@ def _tile_name(tile: int) -> str:
 
 # --------------------------------------------------------------------- yaku
 
+def _yaku(key: str, han: int) -> Dict[str, Any]:
+    """One line of a win's yaku list, named in both of the page's languages."""
+    return {"name": YAKU_NAMES[key]["ja"], "nameEn": YAKU_NAMES[key]["en"], "han": han}
+
+
 @dataclass(frozen=True)
 class _YakuBackend:
     """The one env module the win breakdown has to reach into."""
@@ -287,16 +292,18 @@ def _judge_win(rules: Rules, state: Any, seat: int, is_ron: bool, cached_fan: in
 
 # ------------------------------------------------------------------- prompt
 
+#: Button labels, Japanese and English; the page shows the one its language picks.
 _ACTION_LABELS = {
-    "riichi": "立直",
-    "tsumo": "ツモ",
-    "ron": "ロン",
-    "pon": "ポン",
-    "chi": "チー",
-    "kyuushu": "九種九牌",
-    "pass": "パス",
+    "riichi": ("立直", "Riichi"),
+    "tsumo": ("ツモ", "Tsumo"),
+    "ron": ("ロン", "Ron"),
+    "pon": ("ポン", "Pon"),
+    "chi": ("チー", "Chi"),
+    "kyuushu": ("九種九牌", "Nine Terminals"),
+    "pass": ("パス", "Pass"),
 }
 _OPTION_ORDER = ("ron", "tsumo", "riichi", "kan", "pon", "chi", "kyuushu", "pass")
+_TILE_NAMES_EN: Tuple[str, ...] = _TILE_NAMES[:27] + ("East", "South", "West", "North", "White", "Green", "Red")
 
 
 def _is_added_kan(state: Any, seat: int, tile_type_: int) -> bool:
@@ -310,42 +317,32 @@ def _is_added_kan(state: Any, seat: int, tile_type_: int) -> bool:
 
 def _option(rules: Rules, state: Any, seat: int, action: int) -> Dict[str, Any]:
     target = int(state.round_state.target)
-    if action == rules.RIICHI:
-        return {"action": action, "kind": "riichi", "tiles": None, "label": _ACTION_LABELS["riichi"]}
-    if action == rules.TSUMO:
-        return {"action": action, "kind": "tsumo", "tiles": None, "label": _ACTION_LABELS["tsumo"]}
-    if action == rules.RON:
-        return {"action": action, "kind": "ron", "tiles": None, "label": _ACTION_LABELS["ron"]}
-    if action == rules.PASS:
-        return {"action": action, "kind": "pass", "tiles": None, "label": _ACTION_LABELS["pass"]}
-    if action == rules.KYUUSHU:
-        return {"action": action, "kind": "kyuushu", "tiles": None, "label": _ACTION_LABELS["kyuushu"]}
+    for kind, choice in (
+        ("riichi", rules.RIICHI),
+        ("tsumo", rules.TSUMO),
+        ("ron", rules.RON),
+        ("pass", rules.PASS),
+        ("kyuushu", rules.KYUUSHU),
+    ):
+        if action == choice:
+            return _choice(action, kind, None, *_ACTION_LABELS[kind])
     if rules.is_pon(action):
-        return {
-            "action": action,
-            "kind": "pon",
-            "tiles": rules.pon_tiles(action, target),
-            "label": _ACTION_LABELS["pon"],
-        }
+        return _choice(action, "pon", rules.pon_tiles(action, target), *_ACTION_LABELS["pon"])
     if rules.is_chi(action):
-        return {
-            "action": action,
-            "kind": "chi",
-            "tiles": rules.chi_tiles(action, target),
-            "label": _ACTION_LABELS["chi"],
-        }
+        return _choice(action, "chi", rules.chi_tiles(action, target), *_ACTION_LABELS["chi"])
     if action == rules.OPEN_KAN:
-        return {"action": action, "kind": "kan", "tiles": rules.open_kan_tiles(target), "label": "明槓"}
+        return _choice(action, "kan", rules.open_kan_tiles(target), "明槓", "Open Kan")
     if rules.is_kan(action):
         tile = rules.kan_tile_type(action)
-        added = _is_added_kan(state, seat, tile)
-        return {
-            "action": action,
-            "kind": "kan",
-            "tiles": rules.closed_kan_tiles(tile),
-            "label": f"{'加槓' if added else '暗槓'} {_TILE_NAMES[tile]}",
-        }
+        ja, en = ("加槓", "Added Kan") if _is_added_kan(state, seat, tile) else ("暗槓", "Closed Kan")
+        return _choice(
+            action, "kan", rules.closed_kan_tiles(tile), f"{ja} {_TILE_NAMES[tile]}", f"{en} {_TILE_NAMES_EN[tile]}"
+        )
     raise ValueError(f"{rules.env_id}: action {action} is not an offerable choice")
+
+
+def _choice(action: int, kind: str, tiles: Optional[List[int]], label: str, label_en: str) -> Dict[str, Any]:
+    return {"action": action, "kind": kind, "tiles": tiles, "label": label, "labelEn": label_en}
 
 
 def build_prompt(rules: Rules, state: Any, seat: int) -> Optional[Dict[str, Any]]:
@@ -585,18 +582,18 @@ def build_win(
             for i in np.flatnonzero(judged.mask):
                 value = int(backend.yakuman[i])
                 if value:
-                    yaku.append({"name": YAKU_NAMES[backend.keys[i]]["ja"], "han": value})
+                    yaku.append(_yaku(backend.keys[i], value))
         if pure_first_turn:
             key = "tenhou" if seat == int(rs.dealer) else "chiihou"
-            yaku.append({"name": YAKU_NAMES[key]["ja"], "han": 1})
+            yaku.append(_yaku(key, 1))
     else:
         row = backend.fan[1 if judged.concealed else 0]
         for i in np.flatnonzero(judged.mask):
             value = int(row[i])
             if value:
-                yaku.append({"name": YAKU_NAMES[backend.keys[i]]["ja"], "han": value})
+                yaku.append(_yaku(backend.keys[i], value))
         yaku += [
-            {"name": YAKU_NAMES[key]["ja"], "han": 1} for key, flag in situational if flag
+            _yaku(key, 1) for key, flag in situational if flag
         ]
 
     hand = rules.hand_tiles(pre_state, seat)

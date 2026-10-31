@@ -195,18 +195,6 @@ button.ghost { background: transparent; }
   gap: calc(var(--u) * 1);
 }
 
-.nameplate .badge {
-  width: calc(var(--u) * 3.8);
-  height: calc(var(--u) * 3.8);
-  border-radius: calc(var(--u) * 0.5);
-  background: #2c3238;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: calc(var(--u) * 1.7);
-  font-weight: 700;
-}
-
 .nameplate .pname {
   font-size: calc(var(--u) * 2);
   max-width: calc(var(--u) * 17);
