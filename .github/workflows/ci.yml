@@ -1,4 +1,4 @@
-name: Tests (excluding test_visualize)
+name: Tests
 
 on:
   push:
@@ -31,8 +31,35 @@ jobs:
           make install
           pip install pytest svgwrite typing_extensions>=4.2.0
 
-      - name: Run test suite
+      - name: Run test suite (excluding the UI)
         env:
           PYTHONPATH: .
         run: |
-          pytest -vv
+          pytest --ignore=tests/ui -vv
+
+  ui:
+    # Its own job, so the UI's full games run beside the main suite rather than after it.
+    name: Run UI Pytest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -U pip
+          pip install jax jaxlib
+          make install
+          pip install pytest
+
+      - name: Run the UI tests
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest tests/ui -vv

@@ -12,102 +12,189 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""Registry of the agents a human can sit down against.
+
+An agent is just ``act(state, key) -> int32`` -- the same shape as
+``mahjax.rule_based_player`` -- so a trained policy only has to be wrapped in an
+argmax over the legal actions to appear in the UI.
+
+Agents are declared per env, since a policy is trained for one table.
+"""
 
 from __future__ import annotations
 
 import importlib
-import importlib.abc
 import importlib.util
+from functools import lru_cache
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import jax
 import jax.numpy as jnp
 
-from mahjax.mahjong_4p.players import rule_based_player
-from mahjax.mahjong_4p.state import State
+ActFn = Callable[[Any, Any], Any]
 
-AgentFn = Callable[[State, jnp.ndarray], jnp.ndarray]
+from .rules import ENV_IDS
 
 
-@dataclass
+@dataclass(frozen=True)
 class Agent:
     agent_id: str
     name: str
-    description: str
-    act: AgentFn
+    env_ids: Sequence[str]
+    act: ActFn
+    description: str = ""
+
+    def supports(self, env_id: str) -> bool:
+        return env_id in self.env_ids
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.agent_id,
+            "name": self.name,
+            "envs": list(self.env_ids),
+            "description": self.description,
+        }
 
 
+def _jit_once(fn: Callable[..., Any]) -> Callable[..., Any]:
+    cache: Dict[int, Callable[..., Any]] = {}
+
+    def wrapped(state: Any, key: Any) -> Any:
+        # jax.jit caches per wrapper object, so the wrapper has to outlive the
+        # call -- rebuilding it every turn would retrace on every move.
+        if 0 not in cache:
+            cache[0] = jax.jit(fn)
+        return cache[0](state, key)
+
+    return wrapped
+
+
+@lru_cache(maxsize=None)
+def _rule_based() -> ActFn:
+    """One traced player per process, whichever registry asks for it."""
+    from mahjax.mahjong_4p.players import rule_based_player
+
+    inner = _jit_once(rule_based_player)
+
+    def act(state: Any, key: Any) -> Any:
+        return jnp.asarray(inner(state, key), dtype=jnp.int32)
+
+    return act
+
+
+def _random_action(state: Any, key: Any) -> Any:
+    # Uniform over the legal actions, written as a masked argmax so it stays
+    # jittable (the number of legal actions is not known at trace time).
+    noise = jax.random.uniform(key, state.legal_action_mask.shape)
+    scored = jnp.where(state.legal_action_mask, noise, -jnp.inf)
+    return jnp.argmax(scored).astype(jnp.int32)
+
+
+_RANDOM = _jit_once(_random_action)
+
+
+def _random(state: Any, key: Any) -> Any:
+    return jnp.asarray(_RANDOM(state, key), dtype=jnp.int32)
+
+
+@dataclass
 class AgentRegistry:
-    """Keep track of available agents for the UI server."""
+    """Ordered registry; the first agent supporting an env is its default."""
 
-    def __init__(self) -> None:
-        self._registry: Dict[str, Agent] = {}
-        self._register_builtin_agents()
+    _agents: Dict[str, Agent] = field(default_factory=dict)
 
-    def _register_builtin_agents(self) -> None:
+    def __post_init__(self) -> None:
+        if not self._agents:
+            self._register_builtins()
+
+    def _register_builtins(self) -> None:
         self.add_agent(
             agent_id="rule_based",
             name="Rule-based",
-            description="Heuristic rule-based agent bundled with MahJax.",
-            act=_rule_based_act,
-        )
-        self.add_agent(
-            agent_id="rule_based_red",
-            name="Rule-based (Red)",
-            description="Heuristic rule-based agent for red_4p.",
-            act=_rule_based_act,
+            env_ids=ENV_IDS,
+            act=_rule_based(),
+            description="Heuristic player bundled with mahjax.",
         )
         self.add_agent(
             agent_id="random",
             name="Random",
-            description="Selects a uniformly random legal action.",
-            act=_random_act,
+            env_ids=ENV_IDS,
+            act=_random,
+            description="Uniformly random legal action.",
         )
 
     def add_agent(
         self,
         *,
-        agent_id: Optional[str] = None,
         name: str,
-        description: str,
-        act: AgentFn,
+        act: ActFn,
+        env_ids: Sequence[str] = ENV_IDS,
+        agent_id: Optional[str] = None,
+        description: str = "",
+        first: bool = False,
     ) -> Agent:
-        if agent_id is None:
-            agent_id = uuid.uuid4().hex
-        agent = Agent(agent_id=agent_id, name=name, description=description, act=act)
-        self._registry[agent.agent_id] = agent
+        """Register an agent. ``first=True`` makes it the default for its envs."""
+        if isinstance(env_ids, str):
+            env_ids = (env_ids,)
+        unknown = [e for e in env_ids if e not in ENV_IDS]
+        if unknown:
+            raise ValueError(f"Unknown env ids: {unknown}")
+        agent = Agent(
+            agent_id=agent_id or uuid.uuid4().hex,
+            name=name,
+            env_ids=tuple(env_ids),
+            act=act,
+            description=description,
+        )
+        if first:
+            self._agents = {agent.agent_id: agent, **self._agents}
+        else:
+            self._agents[agent.agent_id] = agent
         return agent
 
     def get(self, agent_id: str) -> Agent:
-        if agent_id not in self._registry:
+        if agent_id not in self._agents:
             raise KeyError(f"Unknown agent id: {agent_id}")
-        return self._registry[agent_id]
+        return self._agents[agent_id]
 
-    def all(self) -> Dict[str, Agent]:
-        return dict(self._registry)
+    def all(self) -> List[Agent]:
+        return list(self._agents.values())
 
-    def default_agent(self) -> Agent:
-        if not self._registry:
-            raise LookupError("No agents registered")
-        first_key = next(iter(self._registry))
-        return self._registry[first_key]
+    def for_env(self, env_id: str) -> List[Agent]:
+        return [a for a in self._agents.values() if a.supports(env_id)]
 
-    def load_callable_agent(
-        self, *, module: str, attribute: str, description: Optional[str] = None
+    def default_for(self, env_id: str) -> Agent:
+        candidates = self.for_env(env_id)
+        if not candidates:
+            raise LookupError(f"No agent registered for {env_id}")
+        return candidates[0]
+
+    def resolve(self, env_id: str, agent_id: Optional[str]) -> Agent:
+        if agent_id is None:
+            return self.default_for(env_id)
+        agent = self.get(agent_id)
+        if not agent.supports(env_id):
+            raise ValueError(f"Agent {agent_id} does not support {env_id}")
+        return agent
+
+    # ------------------------------------------------------- loading helpers
+
+    def load_callable(
+        self,
+        *,
+        module: str,
+        attribute: str,
+        name: Optional[str] = None,
+        env_ids: Sequence[str] = ENV_IDS,
+        description: str = "",
+        first: bool = False,
     ) -> Agent:
         mod = importlib.import_module(module)
-        act_fn = getattr(mod, attribute)
-        if not callable(act_fn):
-            raise TypeError(f"{module}.{attribute} is not callable")
-        agent_name = getattr(act_fn, "__name__", attribute)
-        desc = description or f"Callable agent {module}.{attribute}"
-        return self.add_agent(
-            name=agent_name,
-            description=desc,
-            act=_wrap_callable(act_fn),
+        return self._add_loaded(
+            getattr(mod, attribute), name or attribute, env_ids, description, first
         )
 
     def load_callable_from_path(
@@ -115,51 +202,41 @@ class AgentRegistry:
         *,
         file_path: Path,
         attribute: str,
-        description: Optional[str] = None,
+        name: Optional[str] = None,
+        env_ids: Sequence[str] = ENV_IDS,
+        description: str = "",
+        first: bool = False,
     ) -> Agent:
-        spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
+        spec = importlib.util.spec_from_file_location(Path(file_path).stem, file_path)
         if spec is None or spec.loader is None:
             raise ImportError(f"Cannot import module from {file_path}")
         module = importlib.util.module_from_spec(spec)
-        loader = spec.loader
-        assert isinstance(loader, importlib.abc.Loader)
-        loader.exec_module(module)  # type: ignore[attr-defined]
-        act_fn = getattr(module, attribute)
-        if not callable(act_fn):
-            raise TypeError(f"{attribute} in {file_path} is not callable")
-        agent_name = getattr(act_fn, "__name__", attribute)
-        desc = description or f"Callable agent from {file_path}:{attribute}"
+        spec.loader.exec_module(module)
+        return self._add_loaded(
+            getattr(module, attribute), name or attribute, env_ids, description, first
+        )
+
+    def _add_loaded(
+        self,
+        fn: Any,
+        name: str,
+        env_ids: Sequence[str],
+        description: str,
+        first: bool,
+    ) -> Agent:
+        if not callable(fn):
+            raise TypeError(f"{name} is not callable")
+
+        def act(state: Any, key: Any) -> Any:
+            return jnp.asarray(fn(state, key), dtype=jnp.int32)
+
         return self.add_agent(
-            name=agent_name,
-            description=desc,
-            act=_wrap_callable(act_fn),
+            name=name,
+            act=act,
+            env_ids=env_ids,
+            description=description,
+            first=first,
         )
 
 
-def _wrap_callable(fn: Callable[[State, jnp.ndarray], int]) -> AgentFn:
-    def _act(state: State, rng: jnp.ndarray) -> jnp.ndarray:
-        result = fn(state, rng)
-        return jnp.asarray(result, dtype=jnp.int32)
-
-    return _act
-
-
-def _rule_based_act(state: State, rng: jnp.ndarray) -> jnp.ndarray:
-    return jnp.asarray(jax.jit(rule_based_player)(state, rng), dtype=jnp.int32)
-
-
-def _random_act(state: State, rng: jnp.ndarray) -> jnp.ndarray:
-    legal = jnp.where(state.legal_action_mask)[0]
-    idx = jax.random.randint(rng, shape=(), minval=0, maxval=legal.shape[0])
-    return jnp.asarray(legal[idx], dtype=jnp.int32)
-
-
-def ensure_valid_action(action: int, mask: jnp.ndarray) -> int:
-    if not bool(mask[action]):
-        legal = jnp.where(mask)[0]
-        legal_str = ", ".join(str(int(a)) for a in legal)
-        raise ValueError(f"Illegal action {action}. Legal: [{legal_str}]")
-    return int(action)
-
-
-__all__ = ["Agent", "AgentRegistry", "AgentFn", "ensure_valid_action"]
+__all__ = ["Agent", "AgentRegistry", "ActFn", "ENV_IDS"]
