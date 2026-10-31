@@ -12,8 +12,14 @@ permissions:
 
 jobs:
   tests:
-    name: Run Pytest
+    name: Run Pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest and the newest supported Python. They install different
+        # JAX releases (3.11 gets no newer than 0.10.2), so both are tested.
+        python-version: ["3.11", "3.15"]
 
     steps:
       - name: Checkout repository
@@ -22,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
@@ -39,8 +45,12 @@ jobs:
 
   ui:
     # Its own job, so the UI's full games run beside the main suite rather than after it.
-    name: Run UI Pytest
+    name: Run UI Pytest (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.15"]
 
     steps:
       - name: Checkout repository
@@ -49,7 +59,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
