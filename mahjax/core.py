@@ -13,12 +13,16 @@
 # limitations under the License.
 
 import abc
-from typing import Literal, Optional, Tuple, get_args
+from typing import TYPE_CHECKING, Any, Literal, Optional, Tuple, Union, get_args, overload
 
 import jax.numpy as jnp
 
 from mahjax._src.struct import dataclass
 from mahjax._src.types import Array, PRNGKey
+
+if TYPE_CHECKING:
+    from mahjax.mahjong_3p.env import Mahjong3p
+    from mahjax.mahjong_4p.env import Mahjong4p
 
 TRUE = jnp.bool_(True)
 FALSE = jnp.bool_(False)
@@ -198,7 +202,15 @@ def available_envs() -> Tuple[EnvId, ...]:
     return games
 
 
-def make(env_id: EnvId, **kwargs):  # noqa: C901
+@overload
+def make(env_id: Literal["no_red_4p", "red_4p"], **kwargs: Any) -> "Mahjong4p": ...
+
+
+@overload
+def make(env_id: Literal["no_red_3p", "red_3p"], **kwargs: Any) -> "Mahjong3p": ...
+
+
+def make(env_id: EnvId, **kwargs) -> "Union[Mahjong4p, Mahjong3p]":  # noqa: C901
     """Load the specified environment.
 
     !!! example "Example usage"
