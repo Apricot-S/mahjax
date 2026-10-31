@@ -30,6 +30,7 @@ dependencies = [
 ]
 
 [project.urls]
+"Documentation" = "https://nissymori.github.io/mahjax/"
 "Source" = "https://github.com/nissymori/mahjax"
 
 [tool.setuptools.dynamic]
