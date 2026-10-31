@@ -104,32 +104,26 @@ MahJax includes a web-based UI (FastAPI + JS) that allows you to play against bu
 
 ### Running the UI
 
-Install dependencies and start the server:
+Install MahJax and start the server:
 ```bash
 pip install mahjax
-uvicorn mahjax.ui.app:create_app --host 0.0.0.0 --port 8000
+uvicorn mahjax.ui.app:create_app --factory --host 127.0.0.1 --port 8000
 ```
-Open http://localhost:8000 to start playing. The default agents are the random and `rule_based` ones.
+Open http://localhost:8000 to play. The bundled agents are `rule_based` and `random`. Saved games can be replayed from the menu. `mahjax.ui.show(states)` plays back states from Python with no server, in a notebook or as one HTML file. See the [UI guide](https://nissymori.github.io/mahjax/ui/).
 
 ### Playing Against Your Agent
-You can register your trained agent to appear in the UI's agent selector.
-Create a Python script (e.g., `my_app.py`) and register your agent's `act` function:
+Register your agent's `act(state, key) -> action` on the app before serving it:
 
 ```py
-### my_app.py
-from pathlib import Path
+### my_ui_app.py
 from mahjax.ui.app import create_app
 
-app = create_app()
+from my_agent import act
 
-# Load your custom agent
-app.state.manager.registry.load_callable_from_path(
-    file_path=Path("path/to/my_agent.py"),
-    attribute="act", # The function name to call: act(state, rng) -> action_id
-    description="My Custom Agent",
-)
+app = create_app()
+app.state.registry.add_agent(name="My agent", act=act, description="A trained policy")
 ```
-Run `uvicorn my_ui:app --port 8000`.    
+Run `uvicorn my_ui_app:app --port 8000`.
 
 ## Supported Rules
 
