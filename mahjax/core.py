@@ -94,6 +94,7 @@ class Env(abc.ABC):
 
     def __init__(self): ...
 
+    @abc.abstractmethod
     def init(self, key: PRNGKey) -> State:
         """Return the initial state. Note that no internal state of
         environment changes.
@@ -106,6 +107,7 @@ class Env(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
     def step(
         self,
         state: State,
@@ -126,6 +128,7 @@ class Env(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
     def observe(self, state: State) -> Array:
         """
         Observation function.
@@ -159,20 +162,24 @@ class Env(abc.ABC):
         ...
 
     @property
+    @abc.abstractmethod
     def num_actions(self) -> int:
         """Return the size of action space"""
         ...
 
     @property
+    @abc.abstractmethod
     def observation_shape(self) -> Tuple[int, ...]:
         """Return the matrix shape of observation"""
         ...
 
     @property
+    @abc.abstractmethod
     def _illegal_action_penalty(self) -> float:
         """Negative reward given when illegal action is selected."""
         ...
 
+    @abc.abstractmethod
     def _step_with_illegal_action(self, state: State, loser: Array) -> State:
         """Step function with illegal action."""
         ...
