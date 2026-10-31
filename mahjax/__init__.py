@@ -5,9 +5,8 @@ from mahjax.common.hand import Hand
 from mahjax.common.meld import Meld
 from mahjax.common.tile import River, Tile
 from mahjax.common.yaku import Yaku
-from mahjax.core import Env, EnvId, available_envs, make
+from mahjax.core import Env, EnvId, available_envs, make, rule_based_player
 from mahjax.mahjong_4p.config import NO_RED, RED
-from mahjax.mahjong_4p.players import rule_based_player
 from mahjax.mahjong_4p.state import State, default_state
 
 __version__ = "0.2.0"
