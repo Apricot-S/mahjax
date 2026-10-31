@@ -15,7 +15,7 @@ from mahjax.mahjong_4p import players as _players_4p  # noqa: F401
 from mahjax.mahjong_4p.config import NO_RED, RED
 from mahjax.mahjong_4p.state import State, default_state
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __all__ = [
     # types
