@@ -37,7 +37,7 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from .rules import RED_FIVE_TYPES, RED_TILE_BASE, Rules, red_of, shared_env, shared_step_fn, tile_type
+from .rules import NORTH, RED_FIVE_TYPES, RED_TILE_BASE, Rules, red_of, shared_env, shared_step_fn, tile_type
 
 Event = Dict[str, Any]
 
@@ -59,9 +59,10 @@ ABORTIVE_REASONS = (
 
 #: Event types that stand for an env action. Everything else in a log
 #: (``tsumo``, ``dora``, ``reach_accepted``, ``start_*``, ``end_*``) is
-#: derived state and is skipped while decoding.
+#: derived state and is skipped while decoding. ``nukidora`` is a north set
+#: aside on the 3-player table, written as other 3-player mjai logs write it.
 _ACTION_TYPES = frozenset(
-    {"dahai", "reach", "pon", "chi", "daiminkan", "ankan", "kakan", "hora", "ryukyoku"}
+    {"dahai", "reach", "pon", "chi", "daiminkan", "ankan", "kakan", "hora", "ryukyoku", "nukidora"}
 )
 
 
@@ -117,7 +118,7 @@ def start_kyoku_event(rules: Rules, state: Any) -> Event:
     drawn = int(rs.last_draw)
 
     tehais: List[List[str]] = []
-    for seat in range(4):
+    for seat in range(rules.num_players):
         tiles = rules.hand_tiles(state, seat)
         if seat == dealer and drawn >= 0:
             tiles.remove(drawn)
@@ -125,8 +126,9 @@ def start_kyoku_event(rules: Rules, state: Any) -> Event:
 
     return {
         "type": "start_kyoku",
-        "bakaze": _WINDS[round_index // 4 % 4],
-        "kyoku": round_index % 4 + 1,
+        # A wind lasts one round per seat.
+        "bakaze": _WINDS[round_index // rules.num_players % 4],
+        "kyoku": round_index % rules.num_players + 1,
         "honba": int(rs.honba),
         "kyotaku": int(rs.kyotaku),
         "oya": dealer,
@@ -184,6 +186,8 @@ def encode_step(
 
     if action == rules.RIICHI:
         events.append({"type": "reach", "actor": actor})
+    elif action == rules.KITA:
+        events.append({"type": "nukidora", "actor": actor, "pai": tile_to_mjai(NORTH)})
     elif rules.is_pon(action) or rules.is_chi(action) or action == rules.OPEN_KAN:
         events.append(_call_event(rules, pre_state, action, actor))
     elif rules.is_kan(action):
@@ -192,7 +196,7 @@ def encode_step(
     is_kyuushu = action == rules.KYUUSHU
     if not is_kyuushu:
         events.extend(_dora_events(rules, pre_state, post_state))
-        drawn = _drawn_tile(pre_state, post_state)
+        drawn = _drawn_tile(rules, pre_state, post_state)
         if drawn is not None:
             events.append(
                 {"type": "tsumo", "actor": int(post_state.current_player), "pai": tile_to_mjai(drawn)}
@@ -287,17 +291,29 @@ def _dora_events(rules: Rules, pre_state: Any, post_state: Any) -> List[Event]:
     return [{"type": "dora", "dora_marker": tile_to_mjai(t)} for t in after[before:]]
 
 
-def _drawn_tile(pre_state: Any, post_state: Any) -> Optional[int]:
+def _drawn_tile(rules: Rules, pre_state: Any, post_state: Any) -> Optional[int]:
     """The tile drawn during this step, or ``None``.
 
     ``next_deck_ix`` only ever moves on a live-wall draw and ``n_kan`` only ever
     moves when the replacement tile is taken, so the two counters separate a
-    draw from a call that merely reshuffled a hand.
+    draw from a call that merely reshuffled a hand. A kita's replacement is
+    drawn in the kita's own step, or, when someone could ron the north, once
+    they have passed and the turn is back with the kita's player.
     """
     from_wall = int(post_state.round_state.next_deck_ix) < int(pre_state.round_state.next_deck_ix)
     from_dead_wall = int(np.asarray(post_state.players.n_kan).sum()) > int(
         np.asarray(pre_state.players.n_kan).sum()
     )
+    if rules.KITA is not None:
+        pre_rs, post_rs = pre_state.round_state, post_state.round_state
+        set_aside = int(np.asarray(post_state.players.kita).sum()) > int(np.asarray(pre_state.players.kita).sum())
+        passed_on = (
+            bool(pre_rs.kita_declared)
+            and not bool(post_rs.kita_declared)
+            and int(post_state.current_player) == int(pre_rs.last_player)
+            and not rules.is_round_over(post_state)
+        )
+        from_dead_wall = from_dead_wall or (set_aside and not bool(post_rs.kita_declared)) or passed_on
     if not (from_wall or from_dead_wall):
         return None
     tile = int(post_state.round_state.last_draw)
@@ -328,6 +344,7 @@ def _hora_event(
             ("dora", win.get("doraHan", 0)),
             ("aka dora", win.get("akaHan", 0)),
             ("ura dora", win.get("uraHan", 0)),
+            ("nukidora", win.get("kitaHan", 0)),
         ):
             if count:
                 yakus.append([name, int(count)])
@@ -351,7 +368,7 @@ def _ryukyoku_event(
         "tenpais": tenpai,
         "tehais": [
             [tile_to_mjai(t) for t in rules.hand_tiles(hands_from, seat)] if tenpai[seat] else None
-            for seat in range(4)
+            for seat in range(rules.num_players)
         ],
         "deltas": _deltas(rules, pre_state, post_state),
         "scores": rules.scores(post_state),
@@ -388,7 +405,7 @@ def _abortive_reason(rules: Rules, pre_state: Any) -> str:
 
 def _is_four_winds(rules: Rules, state: Any) -> bool:
     firsts = []
-    for seat in range(4):
+    for seat in range(rules.num_players):
         river = rules.river(state, seat)
         if not river:
             return False
@@ -512,6 +529,8 @@ def _event_action(rules: Rules, state: Any, event: Event) -> Optional[int]:
         return None
     if kind == "reach":
         return rules.RIICHI
+    if kind == "nukidora":
+        return rules.KITA
     if kind == "dahai":
         return _dahai_action(rules, state, event)
     if kind == "hora":

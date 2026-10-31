@@ -74,8 +74,9 @@ def _jit_once(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 @lru_cache(maxsize=None)
 def _rule_based() -> ActFn:
-    """One traced player per process, whichever registry asks for it."""
-    from mahjax.mahjong_4p.players import rule_based_player
+    """One traced player per process, whichever registry asks for it. It plays
+    either table: jax traces it once per table's state."""
+    from mahjax import rule_based_player
 
     inner = _jit_once(rule_based_player)
 

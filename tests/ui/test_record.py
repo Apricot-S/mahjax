@@ -14,7 +14,7 @@ from mahjax.ui.match import Match, MatchConfig
 from mahjax.ui.record import Replay
 from mahjax.ui.rules import rules_for
 
-ENV_IDS = ("red_4p", "no_red_4p")
+ENV_IDS = ("red_4p", "no_red_4p", "red_3p")
 
 
 @pytest.fixture(scope="module")
@@ -132,10 +132,10 @@ def test_every_replay_frame_is_serialisable(registry: AgentRegistry, env_id: str
         json.dumps(frame)
         assert frame["step"]["index"] == index
         assert frame["step"]["total"] == replay.total
-    # A viewpoint-only replay hides the other three hands until the result.
+    # A viewpoint-only replay hides the other hands until the result.
     opening = replay.frame(0, viewpoint=2, show_all=False)
     assert opening["seats"][2]["hand"] is not None
-    assert all(opening["seats"][i]["hand"] is None for i in (0, 1, 3))
+    assert all(seat["hand"] is None for i, seat in enumerate(opening["seats"]) if i != 2)
     everyone = replay.frame(0, viewpoint=2, show_all=True)
     assert all(seat["hand"] is not None for seat in everyone["seats"])
 

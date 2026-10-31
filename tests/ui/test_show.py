@@ -31,8 +31,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from mahjax.mahjong_3p.state import State as ThreePlayerState
-from mahjax.ui import save_html, show, standalone
+from mahjax.ui import save_html, show, standalone, view
 from mahjax.ui.agents import _rule_based
 from mahjax.ui.record import StateReplay
 from mahjax.ui.rules import rules_for, shared_env, shared_step_fn
@@ -103,9 +102,45 @@ def test_a_batch_of_sequences_is_refused() -> None:
         StateReplay(trajectory)
 
 
-def test_three_player_states_are_not_shown_yet() -> None:
-    with pytest.raises(NotImplementedError):
-        StateReplay(ThreePlayerState())
+@functools.lru_cache(maxsize=None)
+def _three_player_game() -> List[Any]:
+    """A rule-based 3-player east game, every state kept."""
+    env, step, act = shared_env("red_3p", "east"), shared_step_fn("red_3p", "east"), _rule_based()
+    key = jax.random.PRNGKey(1)
+    state = jax.device_get(env.init(key))
+    states = [state]
+    while not bool(state.terminated):
+        key, k1, k2 = jax.random.split(key, 3)
+        state = jax.device_get(step(state, act(state, k1), k2))
+        states.append(state)
+    return states
+
+
+def test_a_three_player_game_plays_back_with_its_norths() -> None:
+    states = _three_player_game()
+    replay = StateReplay(states)
+    assert replay.rules.env_id == "red_3p"
+    assert [seat.name for seat in replay.seats] == ["Player 0", "Player 1", "Player 2"]
+    # A wind lasts three rounds.
+    labels = [span.label for span in replay.rounds]
+    assert "東3局" in labels and not any("4局" in label for label in labels)
+    frames = replay.frames(0, replay.total)
+    assert all(len(frame["seats"]) == 3 for frame in frames)
+    assert any(frame["step"]["event"] and frame["step"]["event"]["kind"] == "kita" for frame in frames)
+    assert any(seat["kita"] for frame in frames for seat in frame["seats"])
+    # Every win's breakdown adds up to the han the env paid, the norths included.
+    winners = [w for result in replay._results.values() for w in result["winners"]]
+    assert any(w["kitaHan"] for w in winners)
+    for w in winners:
+        if not w["yakuman"]:
+            parts = sum(y["han"] for y in w["yaku"]) + w["doraHan"] + w["akaHan"] + w["uraHan"] + w["kitaHan"]
+            assert parts == w["han"]
+    # A north can be set aside from the buttons too.
+    rules = replay.rules
+    offered = next(s for s in states if bool(np.asarray(s.legal_action_mask)[rules.KITA]))
+    prompt = view.build_prompt(rules, offered, int(offered.current_player))
+    kita = [o for o in prompt["options"] if o["kind"] == "kita"]
+    assert [(o["label"], o["labelEn"]) for o in kita] == [("北抜き", "Kita")]
 
 
 def _carried(page: str) -> Dict[str, Any]:

@@ -27,6 +27,7 @@ GAMES = (
     ("red_4p", 60),
     ("no_red_4p", 3),
     ("no_red_4p", 2),
+    ("red_3p", 8),
 )
 
 COVERAGE = {
@@ -57,6 +58,7 @@ COVERAGE = {
         "hora",
     },
     ("no_red_4p", 2): {"hora", "ankan", "daiminkan", "reach"},
+    ("red_3p", 8): {"nukidora", "reach", "hora", "pon", "ankan", "daiminkan", "kakan"},
 }
 
 
@@ -170,7 +172,7 @@ def _table(rules: Rules, state: Any) -> Dict[str, Any]:
         "honba": int(state.round_state.honba),
         "kyotaku": int(state.round_state.kyotaku),
         "dealer": int(state.round_state.dealer),
-        "hands": [rules.hand(state, seat).tolist() for seat in range(4)],
+        "hands": [rules.hand(state, seat).tolist() for seat in range(rules.num_players)],
         "terminated": bool(state.terminated),
     }
 
@@ -316,3 +318,23 @@ def test_a_truncated_record_replays_as_far_as_it_goes(
     decoded = mjai.decode_events(played.rules, played.events[:250])
     assert 0 < len(decoded) < len(played.actions)
     assert decoded == played.actions[: len(decoded)]
+
+
+def test_a_kita_replacement_is_drawn_once_nobody_can_ron_the_north() -> None:
+    """In the kita's own step, or once whoever could ron the north has passed; never after a ron."""
+    from tests.mahjong_3p.test_mahjong_3p import STEP_KEY, _env, _kita_table
+
+    rules = rules_for("red_3p")
+    _, _, step = _env(round_end="confirm")
+
+    def encode(state: Any, action: int) -> Tuple[Any, List[Tuple[str, Any]]]:
+        after = jax.device_get(step(state, jnp.int32(action), STEP_KEY))
+        return after, [(e["type"], e.get("actor")) for e in mjai.encode_step(rules, state, action, after)]
+
+    _, events = encode(jax.device_get(_kita_table(can_ron_north=False)), rules.KITA)
+    assert events == [("nukidora", 0), ("tsumo", 0)]
+
+    kitad, events = encode(jax.device_get(_kita_table(can_ron_north=True)), rules.KITA)
+    assert events == [("nukidora", 0)]
+    assert encode(kitad, rules.PASS)[1] == [("tsumo", 0)]
+    assert [kind for kind, _ in encode(kitad, rules.RON)[1]] == ["hora"]

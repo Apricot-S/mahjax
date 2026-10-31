@@ -29,7 +29,8 @@ const el = {
 };
 
 const HONOURS = ["east", "south", "west", "north", "white", "gd", "rd"];
-const ACTION_ORDER = ["ron", "tsumo", "kan", "pon", "chi", "riichi", "kyuushu"];
+const NORTH = 30; // the tile a kita sets aside
+const ACTION_ORDER = ["ron", "tsumo", "kan", "pon", "chi", "riichi", "kita", "kyuushu"];
 
 /** The words this script writes, in both languages of the 言語 menu. The
  *  page's fixed words are in index.html, with their English in data-en. */
@@ -39,12 +40,12 @@ const TEXT = {
     windMarks: ["東", "南", "西", "北"],
     honours: ["東", "南", "西", "北", "白", "發", "中"],
     redFive: (tile) => `赤${tile}`,
-    action: { ron: "ロン", tsumo: "ツモ", kan: "カン", pon: "ポン", chi: "チー", riichi: "リーチ", kyuushu: "九種九牌", pass: "パス" },
+    action: { ron: "ロン", tsumo: "ツモ", kan: "カン", pon: "ポン", chi: "チー", riichi: "リーチ", kyuushu: "九種九牌", kita: "北抜き", pass: "パス" },
     resultTitle: { tsumo: "ツモ", ron: "ロン", draw: "流局", abortive: "途中流局" },
     abortive: { kyuushu: "九種九牌", four_winds: "四風連打", four_riichi: "四家立直", four_kans: "四槓散了", triple_ron: "三家和" },
     event: {
       discard: "打", riichi: "立直", tsumo: "ツモ", ron: "ロン", pass: "パス", dummy: "", kyuushu: "九種九牌",
-      pon: "ポン", chi: "チー", kan_open: "明槓", kan_added: "加槓", kan_closed: "暗槓",
+      pon: "ポン", chi: "チー", kan_open: "明槓", kan_added: "加槓", kan_closed: "暗槓", kita: "北抜き",
     },
     round: (wind, n) => `${wind}${n}局`,
     honba: (n) => ` ${n}本場`,
@@ -71,6 +72,7 @@ const TEXT = {
     doraHan: "ドラ",
     akaHan: "赤ドラ",
     uraHan: "裏ドラ",
+    kitaHan: "抜きドラ",
     han: (n) => `${n}翻`,
     total: (han, fu) => `${han}翻 ${fu}符`,
     yakuman: (n) => `役満 ${n}倍`,
@@ -80,6 +82,7 @@ const TEXT = {
     noRecords: "保存された牌譜はありません。",
     modes: { half: "半荘", east: "東風", single: "一局" },
     redRule: (red) => (red ? "赤あり" : "赤なし"),
+    threePlayer: "三人麻雀",
     unfinished: "中断",
     starting: "準備中…",
     loading: "牌譜を読み込み中…",
@@ -90,12 +93,12 @@ const TEXT = {
     windMarks: ["E", "S", "W", "N"],
     honours: ["East", "South", "West", "North", "White", "Green", "Red"],
     redFive: (tile) => `red ${tile}`,
-    action: { ron: "Ron", tsumo: "Tsumo", kan: "Kan", pon: "Pon", chi: "Chi", riichi: "Riichi", kyuushu: "Nine Terminals", pass: "Pass" },
+    action: { ron: "Ron", tsumo: "Tsumo", kan: "Kan", pon: "Pon", chi: "Chi", riichi: "Riichi", kyuushu: "Nine Terminals", kita: "Kita", pass: "Pass" },
     resultTitle: { tsumo: "Tsumo", ron: "Ron", draw: "Exhaustive Draw", abortive: "Abortive Draw" },
     abortive: { kyuushu: "Nine Terminals", four_winds: "Four Winds", four_riichi: "Four Riichi", four_kans: "Four Kans", triple_ron: "Triple Ron" },
     event: {
       discard: "discards", riichi: "riichi", tsumo: "tsumo", ron: "ron", pass: "passes", dummy: "", kyuushu: "nine terminals",
-      pon: "pon", chi: "chi", kan_open: "open kan", kan_added: "added kan", kan_closed: "closed kan",
+      pon: "pon", chi: "chi", kan_open: "open kan", kan_added: "added kan", kan_closed: "closed kan", kita: "kita",
     },
     round: (wind, n) => `${wind} ${n}`,
     honba: (n) => `, honba ${n}`,
@@ -122,6 +125,7 @@ const TEXT = {
     doraHan: "Dora",
     akaHan: "Red Fives",
     uraHan: "Ura Dora",
+    kitaHan: "Kita Dora",
     han: (n) => `${n} han`,
     total: (han, fu) => `${han} han ${fu} fu`,
     yakuman: (n) => `Yakuman ×${n}`,
@@ -131,6 +135,7 @@ const TEXT = {
     noRecords: "No saved games.",
     modes: { half: "Half game", east: "East only", single: "One round" },
     redRule: (red) => (red ? "Red fives" : "No red fives"),
+    threePlayer: "3-player",
     unfinished: "unfinished",
     starting: "Starting…",
     loading: "Loading the record…",
@@ -281,12 +286,21 @@ function sideways(tile) {
   return slot;
 }
 
-function roundLabel(round) {
+function roundLabel(round, seats) {
+  // A wind lasts one round per seat.
   const winds = say("winds");
-  return say("round", winds[Math.floor(round.index / 4)] || winds[0], (round.index % 4) + 1);
+  return say("round", winds[Math.floor(round.index / seats)] || winds[0], (round.index % seats) + 1);
 }
 
 // ------------------------------------------------------------------ the board
+
+/** Where seat ``abs`` sits as seen from seat ``vp``: 0 at the bottom, then 1 on
+ *  the right, 2 across and 3 on the left. At three players the seat across is
+ *  left empty, as it is at a three-player table. */
+function seatPos(abs, vp, seats) {
+  const rel = (abs - vp + seats) % seats;
+  return seats === 3 && rel === 2 ? 3 : rel;
+}
 
 function viewpointSeat(v) {
   if (S.mode === "replay") return S.viewpoint;
@@ -327,7 +341,7 @@ function showCallouts(v, calls) {
     node.dataset.rel =
       call.seat === null || call.seat === undefined
         ? "center"
-        : String((call.seat - vp + 4) % 4);
+        : String(seatPos(call.seat, vp, v.seats.length));
     el.table.append(node);
   }
 }
@@ -338,17 +352,18 @@ function clearCallouts() {
 
 function renderSeats(v, vp) {
   el.seats.textContent = "";
+  const seats = v.seats.length;
   v.seats.forEach((seat, abs) => {
-    const rel = (abs - vp + 4) % 4;
-    const layer = div(rel === 0 ? "seat" : "seat other");
-    layer.style.transform = `rotate(${-90 * rel}deg)`;
-    const metrics = handMetrics(seat, rel === 0);
+    const pos = seatPos(abs, vp, seats);
+    const layer = div(pos === 0 ? "seat" : "seat other");
+    layer.style.transform = `rotate(${-90 * pos}deg)`;
+    const metrics = handMetrics(seat, pos === 0, seats);
     layer.append(
       riverEl(v, seat, abs),
       nameplateEl(abs, metrics),
-      handEl(v, seat, abs, rel === 0, metrics)
+      handEl(v, seat, abs, pos === 0, metrics)
     );
-    const melds = meldsEl(seat, abs, metrics);
+    const melds = meldsEl(seat, abs, metrics, seats);
     if (melds) layer.append(melds);
     el.seats.append(layer);
   });
@@ -386,7 +401,7 @@ function riverEl(v, seat, abs) {
  *  Returns one entry per *slot*, which is not the same as per tile: an added kan
  *  puts its fourth tile on top of the one already lying sideways, so three slots
  *  hold four tiles. */
-function meldTiles(meld, ownerSeat) {
+function meldTiles(meld, ownerSeat, seats) {
   const tiles = meld.tiles.map((t) => ({ tile: t, turned: false, hidden: false, stacked: false }));
   if (meld.kind === "kan_closed") {
     tiles[0].hidden = true;
@@ -395,7 +410,7 @@ function meldTiles(meld, ownerSeat) {
   }
   if (meld.called === null || meld.called === undefined) return tiles;
 
-  const rel = meld.from === null ? 2 : (meld.from - ownerSeat + 4) % 4;
+  const rel = meld.from === null ? 2 : seatPos(meld.from, ownerSeat, seats);
   const position = rel === 3 ? 0 : rel === 2 ? 1 : 2;
 
   if (meld.kind === "kan_added") {
@@ -425,18 +440,24 @@ function meldTiles(meld, ownerSeat) {
 }
 
 /** Melds are laid down at the edge of your side of the table: the first one
- *  called ends up furthest out, later ones stack back towards the hand. */
-function meldsEl(seat, ownerSeat, metrics) {
-  if (!seat.melds.length) return null;
+ *  called ends up furthest out, later ones stack back towards the hand. The
+ *  norths set aside lie further out still. */
+function meldsEl(seat, ownerSeat, metrics, seats) {
+  if (!seat.melds.length && !seat.kita) return null;
   const box = div("melds");
   box.style.setProperty("--meld-scale", metrics.meldScale);
-  for (const meld of [...seat.melds].reverse()) box.append(meldEl(meld, ownerSeat));
+  for (const meld of [...seat.melds].reverse()) box.append(meldEl(meld, ownerSeat, seats));
+  if (seat.kita) {
+    const norths = div("meld");
+    for (let i = 0; i < seat.kita; i += 1) norths.append(tileImg(NORTH));
+    box.append(norths);
+  }
   return box;
 }
 
-function meldEl(meld, ownerSeat) {
+function meldEl(meld, ownerSeat, seats) {
   const box = div("meld");
-  for (const piece of meldTiles(meld, ownerSeat)) {
+  for (const piece of meldTiles(meld, ownerSeat, seats)) {
     if (piece.stacked) {
       const slot = div("stacked");
       slot.append(tileImg(piece.second), tileImg(piece.tile));
@@ -506,7 +527,7 @@ function handEl(v, seat, abs, isSelf, metrics) {
  *  is left of them. Space for the drawn tile is reserved whether or not one is
  *  held, so picking a tile up never nudges the tiles you were about to click.
  */
-function handMetrics(seat, isSelf) {
+function handMetrics(seat, isSelf, seats) {
   const ratio = 29 / 41.5;
   const tileW = (isSelf ? 7.2 : 5.6) * ratio;
   const meldTileW = 5.2 * ratio;
@@ -516,17 +537,19 @@ function handMetrics(seat, isSelf) {
       : false;
   const concealed = (seat.hand ? seat.hand.length : seat.handCount) - (hasDrawn ? 1 : 0);
 
+  const kita = seat.kita || 0;
+  const groups = seat.melds.length + (kita ? 1 : 0);
   let meldWidth = 0;
-  if (seat.melds.length) {
-    meldWidth = (seat.melds.length - 1) * 1.1;
+  if (groups) {
+    meldWidth = (groups - 1) * 1.1 + kita * meldTileW;
     for (const meld of seat.melds) {
-      for (const piece of meldTiles(meld, 0)) {
+      for (const piece of meldTiles(meld, 0, seats)) {
         meldWidth += piece.turned || piece.stacked ? 5.2 : meldTileW;
       }
     }
   }
   const meldScale = Math.min(1, 56 / Math.max(meldWidth, 1));
-  const meldSpan = seat.melds.length ? meldWidth * meldScale + 5 : 0;
+  const meldSpan = groups ? meldWidth * meldScale + 5 : 0;
 
   const room = 100 - meldSpan;
   const width = concealed * tileW;
@@ -546,7 +569,7 @@ function handMetrics(seat, isSelf) {
 function renderCenter(v, vp) {
   el.center.textContent = "";
   const info = div("info");
-  info.append(div("round", roundLabel(v.round)));
+  info.append(div("round", roundLabel(v.round, v.seats.length)));
   info.append(div("sticks", say("sticks", v.round.honba, v.round.kyotaku)));
   info.append(div("sticks", say("remaining", v.round.remaining)));
 
@@ -558,9 +581,8 @@ function renderCenter(v, vp) {
   el.center.append(info);
 
   v.seats.forEach((seat, abs) => {
-    const rel = (abs - vp + 4) % 4;
     const layer = div("plate-layer");
-    layer.style.transform = `rotate(${-90 * rel}deg)`;
+    layer.style.transform = `rotate(${-90 * seatPos(abs, vp, v.seats.length)}deg)`;
     const windBadge = div(
       abs === v.dealer ? "seat-wind dealer" : "seat-wind",
       say("windMarks")[seat.wind]
@@ -603,7 +625,7 @@ function renderActions(v) {
  *  rather than the drawn one, so the buttons stay put between a draw and a
  *  call. [パス] is added last, so it is always rightmost. */
 function placeActions(v) {
-  const metrics = handMetrics(v.seats[viewpointSeat(v)], true);
+  const metrics = handMetrics(v.seats[viewpointSeat(v)], true, v.seats.length);
   el.actions.style.right = `${100 - metrics.edge}%`;
   // Clear of the hand (7.2) and of a tile lifted by hover (1.4), both scaled.
   el.actions.style.bottom = `calc(var(--u) * ${1.4 + 8.6 * metrics.scale + 0.6})`;
@@ -898,7 +920,7 @@ function winnerBlock(v, w) {
   }
   // Melds are drawn by the same code as on the table, so a concealed kan shows
   // its two face-down tiles and an added kan its stacked fourth here too.
-  for (const meld of w.melds) tiles.append(meldEl(meld, w.seat));
+  for (const meld of w.melds) tiles.append(meldEl(meld, w.seat, v.seats.length));
   // The indicators ride on the same row: a hand with many yaku is tall enough
   // already without giving them a line of their own.
   if (w.dora.length || w.uraDora.length) {
@@ -923,6 +945,7 @@ function winnerBlock(v, w) {
     [say("doraHan"), w.doraHan],
     [say("akaHan"), w.akaHan],
     [say("uraHan"), w.uraHan],
+    [say("kitaHan"), w.kitaHan],
   ];
   for (const [name, han] of extras) {
     if (han) yaku.append(div(null, name), div("han", say("han", han)));
@@ -1065,7 +1088,7 @@ function renderReplayBar(v) {
   const within = S.index - span.start + 1;
   const total = span.end - span.start + 1;
   const event = v.step && v.step.event ? describeEvent(v, v.step.event) : say("deal");
-  const round = roundLabel(v.round) + (v.round.honba ? say("honba", v.round.honba) : "");
+  const round = roundLabel(v.round, v.seats.length) + (v.round.honba ? say("honba", v.round.honba) : "");
   const text = `${round}  ${within}/${total}  ${event}`;
   el.replayLabel.textContent = text;
   el.replayLabel.title = text;
@@ -1230,7 +1253,27 @@ async function refreshAgents() {
   }
 }
 
-$("cfgEnv").addEventListener("change", refreshAgents);
+/** A three-player table has no north seat to sit at. */
+function fitSeatChoices() {
+  const three = $("cfgEnv").value.endsWith("_3p");
+  const north = $("cfgSeat").querySelector('option[value="3"]');
+  north.hidden = three;
+  north.disabled = three;
+  if (three && $("cfgSeat").value === "3") $("cfgSeat").value = "random";
+}
+
+$("cfgEnv").addEventListener("change", () => {
+  fitSeatChoices();
+  refreshAgents();
+});
+fitSeatChoices();
+
+/** The rules as the menu names them: "赤あり", or "三人麻雀 赤あり". */
+function ruleName(env) {
+  const id = env || "";
+  const rule = say("redRule", id.startsWith("red_"));
+  return id.endsWith("_3p") ? `${say("threePlayer")} ${rule}` : rule;
+}
 
 async function refreshRecords() {
   try {
@@ -1245,7 +1288,7 @@ async function refreshRecords() {
       button.className = "record";
       const when = new Date(record.createdAt).toLocaleString();
       const mode = say("modes")[record.roundMode] || record.roundMode;
-      const rule = say("redRule", record.env === "red_4p");
+      const rule = ruleName(record.env);
       const unfinished = record.complete ? "" : say("sep") + say("unfinished");
       button.append(div("when", `${when}${say("sep")}${rule} ${mode}${unfinished}`));
       button.append(div("who", record.players.map((p) => p.name).join(" / ")));

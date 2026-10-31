@@ -39,7 +39,6 @@ from .rules import ENV_IDS, Rules, rules_for, shared_env, shared_step_fn
 from .view import SeatInfo
 
 RECORD_SUFFIX = ".mjson"
-NUM_PLAYERS = 4
 
 
 class RecordError(RuntimeError):
@@ -105,11 +104,13 @@ def _summary(record_id: str, first_line: Dict[str, Any], mtime: float) -> Dict[s
     meta = first_line.get("mahjax") or {}
     names = first_line.get("names") or []
     players = meta.get("players") or []
+    env_id = meta.get("env_id")
+    seats = rules_for(env_id).num_players if env_id in ENV_IDS else 4
     return {
         "id": record_id,
         "createdAt": meta.get("created_at")
         or _dt.datetime.fromtimestamp(mtime).astimezone().isoformat(timespec="seconds"),
-        "env": meta.get("env_id"),
+        "env": env_id,
         "roundMode": meta.get("round_mode"),
         "humanSeat": meta.get("human_seat"),
         "complete": bool(meta.get("complete")),
@@ -119,7 +120,7 @@ def _summary(record_id: str, first_line: Dict[str, Any], mtime: float) -> Dict[s
                 "name": names[i] if i < len(names) else f"Player {i + 1}",
                 "kind": (players[i] or {}).get("kind", "agent") if i < len(players) else "agent",
             }
-            for i in range(NUM_PLAYERS)
+            for i in range(seats)
         ],
     }
 
@@ -169,7 +170,8 @@ def round_label(state: Any) -> str:
     rs = state.round_state
     index = int(rs.round)
     honba = int(rs.honba)
-    label = f"{_WIND_JA[min(index // 4, 3)]}{index % 4 + 1}局"
+    seats = int(state.constants.NUM_PLAYERS)  # a wind lasts one round per seat
+    label = f"{_WIND_JA[min(index // seats, 3)]}{index % seats + 1}局"
     if honba:
         label += f" {honba}本場"
     return label
@@ -221,7 +223,7 @@ class Replay:
         names = self.events[0].get("names") or []
         players = self.meta.get("players") or []
         out: List[SeatInfo] = []
-        for i in range(NUM_PLAYERS):
+        for i in range(self.rules.num_players):
             kind = (players[i] or {}).get("kind", "agent") if i < len(players) else "agent"
             name = names[i] if i < len(names) else f"Player {i + 1}"
             out.append(SeatInfo(name=name, kind=kind))
@@ -404,13 +406,14 @@ class Replay:
     def frame(self, index: int, *, viewpoint: Optional[int], show_all: bool) -> Dict[str, Any]:
         if not 0 <= index < len(self._states):
             raise IndexError(index)
+        seats = self.rules.num_players
         if show_all:
-            reveal = [True] * NUM_PLAYERS
+            reveal = [True] * seats
         else:
             seat = 0 if viewpoint is None else int(viewpoint)
-            reveal = [i == seat for i in range(NUM_PLAYERS)]
+            reveal = [i == seat for i in range(seats)]
             if index in self._results:
-                reveal = [True] * NUM_PLAYERS
+                reveal = [True] * seats
         meta = dict(self._steps[index])
         step = {
             "index": index,
@@ -474,11 +477,9 @@ def unstack_states(states: Any) -> List[Any]:
 
 
 def env_id_of(state: Any) -> str:
-    """The UI rules for a state. Its preset is not stored, so a wall with red fives means ``red_4p``."""
-    if int(state.constants.NUM_PLAYERS) != NUM_PLAYERS:
-        raise NotImplementedError("The UI shows 4-player states only")
+    """The UI rules for a state. Its preset is not stored, so a wall with red fives means a red one."""
     has_red = bool((np.asarray(state.round_state.deck) >= 34).any())
-    return "red_4p" if has_red else "no_red_4p"
+    return f"{'red' if has_red else 'no_red'}_{int(state.constants.NUM_PLAYERS)}p"
 
 
 def _recorded_action(pre: Any, post: Any) -> Optional[int]:
@@ -515,7 +516,7 @@ class StateReplay(Replay):
         self.rules = rules_for(env_id)
         self.round_mode = None
         self.env = None
-        self.seats = [SeatInfo(name=f"Player {i}", kind="agent") for i in range(NUM_PLAYERS)]
+        self.seats = [SeatInfo(name=f"Player {i}", kind="agent") for i in range(self.rules.num_players)]
         self.human_seat = None
         self._states = []
         self._steps = []

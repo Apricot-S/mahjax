@@ -366,7 +366,7 @@ def test_win_han_and_fu_are_what_the_env_paid(roll: Rollout) -> None:
 def test_views_and_results_are_json(roll: Rollout) -> None:
     assert roll.views and roll.results
     seat_keys = {"name", "kind", "wind", "score", "riichi", "hand", "handCount",
-                 "drawn", "melds", "river"}
+                 "drawn", "melds", "kita", "river"}
     prompted = ura_shown = 0
     for view in roll.views:
         text = json.dumps(view, ensure_ascii=False)
@@ -375,13 +375,15 @@ def test_views_and_results_are_json(roll: Rollout) -> None:
                              "lastDiscard", "prompt", "result", "gameOver", "step"}
         assert len(view["seats"]) == 4
         assert all(set(s) == seat_keys for s in view["seats"])
+        assert all(s["kita"] == 0 for s in view["seats"])  # four players set no north aside
         assert len(view["round"]["dora"]) == 5
         prompted += view["prompt"] is not None
         ura_shown += view["round"]["uraDora"] is not None
     assert prompted > 0 and ura_shown > 0
     winner_keys = {"seat", "from", "hand", "melds", "winningTile", "yaku", "doraHan",
-                   "akaHan", "uraHan", "han", "fu", "yakuman", "dora", "uraDora", "points"}
+                   "akaHan", "uraHan", "kitaHan", "han", "fu", "yakuman", "dora", "uraDora", "points"}
     assert all(set(w["win"]) == winner_keys for w in roll.wins)
+    assert all(w["win"]["kitaHan"] == 0 for w in roll.wins)
     for record in roll.results:
         result = record["result"]
         json.dumps(result, ensure_ascii=False)
