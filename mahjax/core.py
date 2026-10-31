@@ -13,13 +13,16 @@
 # limitations under the License.
 
 import abc
-from typing import Literal, Optional, Tuple, get_args
+from typing import TYPE_CHECKING, Any, Literal, Optional, Tuple, Union, get_args, overload
 
-import jax
 import jax.numpy as jnp
 
 from mahjax._src.struct import dataclass
 from mahjax._src.types import Array, PRNGKey
+
+if TYPE_CHECKING:
+    from mahjax.mahjong_3p.env import Mahjong3p
+    from mahjax.mahjong_4p.env import Mahjong4p
 
 TRUE = jnp.bool_(True)
 FALSE = jnp.bool_(False)
@@ -94,6 +97,7 @@ class Env(abc.ABC):
 
     def __init__(self): ...
 
+    @abc.abstractmethod
     def init(self, key: PRNGKey) -> State:
         """Return the initial state. Note that no internal state of
         environment changes.
@@ -106,6 +110,7 @@ class Env(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
     def step(
         self,
         state: State,
@@ -126,6 +131,7 @@ class Env(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
     def observe(self, state: State) -> Array:
         """
         Observation function.
@@ -159,20 +165,24 @@ class Env(abc.ABC):
         ...
 
     @property
+    @abc.abstractmethod
     def num_actions(self) -> int:
         """Return the size of action space"""
         ...
 
     @property
+    @abc.abstractmethod
     def observation_shape(self) -> Tuple[int, ...]:
         """Return the matrix shape of observation"""
         ...
 
     @property
+    @abc.abstractmethod
     def _illegal_action_penalty(self) -> float:
         """Negative reward given when illegal action is selected."""
         ...
 
+    @abc.abstractmethod
     def _step_with_illegal_action(self, state: State, loser: Array) -> State:
         """Step function with illegal action."""
         ...
@@ -192,7 +202,15 @@ def available_envs() -> Tuple[EnvId, ...]:
     return games
 
 
-def make(env_id: EnvId, **kwargs):  # noqa: C901
+@overload
+def make(env_id: Literal["no_red_4p", "red_4p"], **kwargs: Any) -> "Mahjong4p": ...
+
+
+@overload
+def make(env_id: Literal["no_red_3p", "red_3p"], **kwargs: Any) -> "Mahjong3p": ...
+
+
+def make(env_id: EnvId, **kwargs) -> "Union[Mahjong4p, Mahjong3p]":  # noqa: C901
     """Load the specified environment.
 
     !!! example "Example usage"
