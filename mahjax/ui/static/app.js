@@ -28,32 +28,131 @@ const el = {
   recordList: $("recordList"),
 };
 
-const WINDS = ["東", "南", "西", "北"];
 const HONOURS = ["east", "south", "west", "north", "white", "gd", "rd"];
-const ACTION_LABEL = {
-  ron: "ロン",
-  tsumo: "ツモ",
-  kan: "カン",
-  pon: "ポン",
-  chi: "チー",
-  riichi: "リーチ",
-  kyuushu: "九種九牌",
-  pass: "パス",
-};
 const ACTION_ORDER = ["ron", "tsumo", "kan", "pon", "chi", "riichi", "kyuushu"];
-const RESULT_TITLE = {
-  tsumo: "ツモ",
-  ron: "ロン",
-  draw: "流局",
-  abortive: "途中流局",
+
+/** The words this script writes, in both languages of the 言語 menu. The
+ *  page's fixed words are in index.html, with their English in data-en. */
+const TEXT = {
+  ja: {
+    winds: ["東", "南", "西", "北"],
+    windMarks: ["東", "南", "西", "北"],
+    honours: ["東", "南", "西", "北", "白", "發", "中"],
+    redFive: (tile) => `赤${tile}`,
+    action: { ron: "ロン", tsumo: "ツモ", kan: "カン", pon: "ポン", chi: "チー", riichi: "リーチ", kyuushu: "九種九牌", pass: "パス" },
+    resultTitle: { tsumo: "ツモ", ron: "ロン", draw: "流局", abortive: "途中流局" },
+    abortive: { kyuushu: "九種九牌", four_winds: "四風連打", four_riichi: "四家立直", four_kans: "四槓散了", triple_ron: "三家和" },
+    event: {
+      discard: "打", riichi: "立直", tsumo: "ツモ", ron: "ロン", pass: "パス", dummy: "", kyuushu: "九種九牌",
+      pon: "ポン", chi: "チー", kan_open: "明槓", kan_added: "加槓", kan_closed: "暗槓",
+    },
+    round: (wind, n) => `${wind}${n}局`,
+    honba: (n) => ` ${n}本場`,
+    sticks: (honba, kyotaku) => `${honba}本場 ・ 供託 ${kyotaku}`,
+    remaining: (n) => `残り ${n}`,
+    deal: "配牌",
+    sep: " ・ ",
+    gameOver: "終局",
+    claim: "鳴きますか",
+    yourTurn: "あなたの番",
+    toFinal: "終局へ",
+    nextRound: "次の局へ",
+    score: "点数",
+    change: "増減",
+    rank: "順位",
+    uma: "順位点",
+    rankOf: (n) => `${n}位`,
+    winLine: (who, from, points) => `${who} ・ ${from === null ? "ツモ" : `${from} から`} ・ ${points}点`,
+    nagashi: (who) => `流し満貫 ${who}`,
+    tenpai: "聴牌",
+    noten: "不聴",
+    doraMarker: "ドラ",
+    uraMarker: "裏",
+    doraHan: "ドラ",
+    akaHan: "赤ドラ",
+    uraHan: "裏ドラ",
+    han: (n) => `${n}翻`,
+    total: (han, fu) => `${han}翻 ${fu}符`,
+    yakuman: (n) => `役満 ${n}倍`,
+    notSaved: "この対局は保存されていません",
+    play: "再生",
+    stop: "停止",
+    noRecords: "保存された牌譜はありません。",
+    modes: { half: "半荘", east: "東風", single: "一局" },
+    redRule: (red) => (red ? "赤あり" : "赤なし"),
+    unfinished: "中断",
+    starting: "準備中…",
+    loading: "牌譜を読み込み中…",
+    cannotOpen: (message) => `このページを開けません: ${message}`,
+  },
+  en: {
+    winds: ["East", "South", "West", "North"],
+    windMarks: ["E", "S", "W", "N"],
+    honours: ["East", "South", "West", "North", "White", "Green", "Red"],
+    redFive: (tile) => `red ${tile}`,
+    action: { ron: "Ron", tsumo: "Tsumo", kan: "Kan", pon: "Pon", chi: "Chi", riichi: "Riichi", kyuushu: "Nine Terminals", pass: "Pass" },
+    resultTitle: { tsumo: "Tsumo", ron: "Ron", draw: "Exhaustive Draw", abortive: "Abortive Draw" },
+    abortive: { kyuushu: "Nine Terminals", four_winds: "Four Winds", four_riichi: "Four Riichi", four_kans: "Four Kans", triple_ron: "Triple Ron" },
+    event: {
+      discard: "discards", riichi: "riichi", tsumo: "tsumo", ron: "ron", pass: "passes", dummy: "", kyuushu: "nine terminals",
+      pon: "pon", chi: "chi", kan_open: "open kan", kan_added: "added kan", kan_closed: "closed kan",
+    },
+    round: (wind, n) => `${wind} ${n}`,
+    honba: (n) => `, honba ${n}`,
+    sticks: (honba, kyotaku) => `Honba ${honba} · Sticks ${kyotaku}`,
+    remaining: (n) => `Wall ${n}`,
+    deal: "Deal",
+    sep: " · ",
+    gameOver: "Game over",
+    claim: "Call?",
+    yourTurn: "Your turn",
+    toFinal: "Final standings",
+    nextRound: "Next round",
+    score: "Score",
+    change: "Change",
+    rank: "Rank",
+    uma: "Uma",
+    rankOf: (n) => ["1st", "2nd", "3rd"][n - 1] || `${n}th`,
+    winLine: (who, from, points) => `${who} · ${from === null ? "Tsumo" : `Ron from ${from}`} · ${points} points`,
+    nagashi: (who) => `Nagashi mangan: ${who}`,
+    tenpai: "Tenpai",
+    noten: "Noten",
+    doraMarker: "Dora",
+    uraMarker: "Ura",
+    doraHan: "Dora",
+    akaHan: "Red Fives",
+    uraHan: "Ura Dora",
+    han: (n) => `${n} han`,
+    total: (han, fu) => `${han} han ${fu} fu`,
+    yakuman: (n) => `Yakuman ×${n}`,
+    notSaved: "This game was not saved",
+    play: "Play",
+    stop: "Stop",
+    noRecords: "No saved games.",
+    modes: { half: "Half game", east: "East only", single: "One round" },
+    redRule: (red) => (red ? "Red fives" : "No red fives"),
+    unfinished: "unfinished",
+    starting: "Starting…",
+    loading: "Loading the record…",
+    cannotOpen: (message) => `Cannot open this page: ${message}`,
+  },
 };
-const ABORTIVE_REASON = {
-  kyuushu: "九種九牌",
-  four_winds: "四風連打",
-  four_riichi: "四家立直",
-  four_kans: "四槓散了",
-  triple_ron: "三家和",
-};
+
+/** One word or phrase in the page's language; phrases take their numbers and names. */
+function say(key, ...args) {
+  const entry = TEXT[S.lang][key];
+  return typeof entry === "function" ? entry(...args) : entry;
+}
+
+/** Seats are named by their index in the env, whoever plays them. */
+function seatLabel(seat) {
+  return `Player ${seat}`;
+}
+
+/** A name the server sends in both languages (an option's label, a yaku's name). */
+function localized(item, key) {
+  return (S.lang === "en" && item[`${key}En`]) || item[key];
+}
 
 const S = {
   mode: "idle",
@@ -183,7 +282,8 @@ function sideways(tile) {
 }
 
 function roundLabel(round) {
-  return `${WINDS[Math.floor(round.index / 4)] || "東"}${(round.index % 4) + 1}局`;
+  const winds = say("winds");
+  return say("round", winds[Math.floor(round.index / 4)] || winds[0], (round.index % 4) + 1);
 }
 
 // ------------------------------------------------------------------ the board
@@ -245,7 +345,7 @@ function renderSeats(v, vp) {
     const metrics = handMetrics(seat, rel === 0);
     layer.append(
       riverEl(v, seat, abs),
-      nameplateEl(seat, metrics),
+      nameplateEl(abs, metrics),
       handEl(v, seat, abs, rel === 0, metrics)
     );
     const melds = meldsEl(seat, abs, metrics);
@@ -256,11 +356,10 @@ function renderSeats(v, vp) {
 
 /** Sits just above the left end of the hand, so it follows the hand's width
  *  instead of drifting off to the corner of the table. */
-function nameplateEl(seat, metrics) {
+function nameplateEl(abs, metrics) {
   const box = div("nameplate");
   box.style.left = `${metrics.left}%`;
-  box.append(div("badge", seat.kind === "human" ? "人" : "AI"));
-  box.append(div("pname", seat.name));
+  box.append(div("pname", seatLabel(abs)));
   return box;
 }
 
@@ -448,8 +547,8 @@ function renderCenter(v, vp) {
   el.center.textContent = "";
   const info = div("info");
   info.append(div("round", roundLabel(v.round)));
-  info.append(div("sticks", `${v.round.honba}本場 ・ 供託 ${v.round.kyotaku}`));
-  info.append(div("sticks", `残り ${v.round.remaining}`));
+  info.append(div("sticks", say("sticks", v.round.honba, v.round.kyotaku)));
+  info.append(div("sticks", say("remaining", v.round.remaining)));
 
   const dora = div("dora");
   for (const marker of v.round.dora) {
@@ -464,7 +563,7 @@ function renderCenter(v, vp) {
     layer.style.transform = `rotate(${-90 * rel}deg)`;
     const windBadge = div(
       abs === v.dealer ? "seat-wind dealer" : "seat-wind",
-      WINDS[seat.wind]
+      say("windMarks")[seat.wind]
     );
     layer.append(windBadge);
     const plate = div("plate");
@@ -518,7 +617,7 @@ function buttonFor(kind, label) {
 }
 
 function simpleButton(kind, option) {
-  const button = buttonFor(kind, option.label || ACTION_LABEL[kind] || kind);
+  const button = buttonFor(kind, localized(option, "label") || say("action")[kind] || kind);
   button.addEventListener("click", () => sendAction(option.action, button));
   return button;
 }
@@ -527,7 +626,7 @@ function simpleButton(kind, option) {
  *  button, over the table, and the player picks the one they meant. */
 function choiceButton(kind, list) {
   const wrap = div("choices");
-  const button = buttonFor(kind, ACTION_LABEL[kind] || kind);
+  const button = buttonFor(kind, say("action")[kind] || kind);
   wrap.append(button);
   let menu = null;
   button.addEventListener("click", () => {
@@ -562,9 +661,9 @@ function renderStatus(v) {
     el.status.textContent = "";
     return;
   }
-  if (v.gameOver) el.status.textContent = "終局";
+  if (v.gameOver) el.status.textContent = say("gameOver");
   else if (v.result) el.status.textContent = "";
-  else if (v.prompt) el.status.textContent = v.prompt.kind === "claim" ? "鳴きますか" : "あなたの番";
+  else if (v.prompt) el.status.textContent = v.prompt.kind === "claim" ? say("claim") : say("yourTurn");
   else el.status.textContent = "";
 }
 
@@ -606,7 +705,7 @@ function pump() {
   // Called out beside the player, like a win. The next frame's render clears
   // it, which gives it exactly one beat on screen.
   if (declared.length) {
-    showCallouts(frame, declared.map((seat) => ({ seat, text: "リーチ" })));
+    showCallouts(frame, declared.map((seat) => ({ seat, text: say("action").riichi })));
   }
   if (!S.queue.length) {
     S.timer = null;
@@ -636,11 +735,11 @@ function calloutsFor(r) {
   if (r.type === "tsumo" || r.type === "ron") {
     return r.winners.map((w) => ({
       seat: w.seat,
-      text: r.type === "tsumo" ? "ツモ" : "ロン",
+      text: say("action")[r.type],
     }));
   }
   if (r.type === "abortive") {
-    return [{ seat: null, text: ABORTIVE_REASON[r.reason] || "途中流局" }];
+    return [{ seat: null, text: say("abortive")[r.reason] || say("resultTitle").abortive }];
   }
   return [];
 }
@@ -703,9 +802,9 @@ function renderResult(v) {
   el.resultPanel.hidden = false;
   el.finalPanel.hidden = true;
   const r = v.result;
-  let title = RESULT_TITLE[r.type] || r.type;
-  if (r.type === "abortive" && r.reason) title = ABORTIVE_REASON[r.reason] || title;
-  if (r.gameOver) title += " ・ 終局";
+  let title = say("resultTitle")[r.type] || r.type;
+  if (r.type === "abortive" && r.reason) title = say("abortive")[r.reason] || title;
+  if (r.gameOver) title += say("sep") + say("gameOver");
   el.resultTitle.textContent = title;
 
   const body = document.createElement("div");
@@ -715,22 +814,22 @@ function renderResult(v) {
   // it the player sees a big swing on a 流局 with nothing to explain it.
   if (r.type === "draw" && r.nagashiMangan) {
     const who = r.nagashiMangan
-      .map((got, i) => (got ? v.seats[i].name : null))
+      .map((got, i) => (got ? seatLabel(i) : null))
       .filter(Boolean)
-      .join(" ・ ");
-    body.append(div("meta", `流し満貫 ${who}`));
+      .join(say("sep"));
+    body.append(div("meta", say("nagashi", who)));
   }
   if (r.type === "draw" && r.tenpai) {
     const line = r.tenpai
-      .map((t, i) => `${v.seats[i].name}: ${t ? "聴牌" : "不聴"}`)
-      .join(" ・ ");
+      .map((t, i) => `${seatLabel(i)}: ${t ? say("tenpai") : say("noten")}`)
+      .join(say("sep"));
     body.append(div("meta", line));
   }
-  body.append(div("meta", `${r.round.honba}本場 ・ 供託 ${r.round.kyotaku}`));
+  body.append(div("meta", say("sticks", r.round.honba, r.round.kyotaku)));
   el.resultBody.textContent = "";
   el.resultBody.append(body);
 
-  el.resultNext.textContent = r.gameOver ? "終局へ" : "次の局へ";
+  el.resultNext.textContent = r.gameOver ? say("toFinal") : say("nextRound");
   el.overlay.hidden = false;
   fitPanel(el.resultPanel, el.resultBody);
 }
@@ -761,7 +860,7 @@ function fitPanel(panel, body) {
 function standingsTable(v, r) {
   const table = document.createElement("table");
   const head = document.createElement("tr");
-  for (const label of ["", "点数", "増減"]) {
+  for (const label of ["", say("score"), say("change")]) {
     const th = document.createElement("th");
     th.textContent = label;
     head.append(th);
@@ -773,7 +872,7 @@ function standingsTable(v, r) {
   for (const seat of order) {
     const row = document.createElement("tr");
     const who = document.createElement("td");
-    who.textContent = `${WINDS[v.seats[seat].wind]} ${v.seats[seat].name}`;
+    who.textContent = `${say("windMarks")[v.seats[seat].wind]} ${seatLabel(seat)}`;
     const score = document.createElement("td");
     score.textContent = r.scores[seat].toLocaleString();
     const delta = document.createElement("td");
@@ -788,8 +887,8 @@ function standingsTable(v, r) {
 
 function winnerBlock(v, w) {
   const box = div("winner");
-  const from = w.from === null ? "ツモ" : `${v.seats[w.from].name} から`;
-  box.append(div(null, `${v.seats[w.seat].name} ・ ${from} ・ ${w.points.toLocaleString()}点`));
+  const from = w.from === null ? null : seatLabel(w.from);
+  box.append(div(null, say("winLine", seatLabel(w.seat), from, w.points.toLocaleString())));
 
   const tiles = div("tiles");
   for (const tile of w.hand) tiles.append(tileImg(tile));
@@ -804,11 +903,11 @@ function winnerBlock(v, w) {
   if (w.dora.length || w.uraDora.length) {
     const markers = div("markers");
     if (w.dora.length) {
-      markers.append(div("marker-label", "ドラ"));
+      markers.append(div("marker-label", say("doraMarker")));
       for (const tile of w.dora) markers.append(tileImg(tile));
     }
     if (w.uraDora.length) {
-      markers.append(div("marker-label", "裏"));
+      markers.append(div("marker-label", say("uraMarker")));
       for (const tile of w.uraDora) markers.append(tileImg(tile));
     }
     tiles.append(markers);
@@ -817,21 +916,21 @@ function winnerBlock(v, w) {
 
   const yaku = div("yaku");
   for (const entry of w.yaku) {
-    yaku.append(div(null, entry.name), div("han", `${entry.han}翻`));
+    yaku.append(div(null, localized(entry, "name")), div("han", say("han", entry.han)));
   }
   const extras = [
-    ["ドラ", w.doraHan],
-    ["赤ドラ", w.akaHan],
-    ["裏ドラ", w.uraHan],
+    [say("doraHan"), w.doraHan],
+    [say("akaHan"), w.akaHan],
+    [say("uraHan"), w.uraHan],
   ];
   for (const [name, han] of extras) {
-    if (han) yaku.append(div(null, name), div("han", `${han}翻`));
+    if (han) yaku.append(div(null, name), div("han", say("han", han)));
   }
   // Folding a long list in two costs half its height and no legibility.
   if (yaku.children.length > 10) yaku.classList.add("two-col");
   box.append(yaku);
   box.append(
-    div("total", w.yakuman ? `役満 ${w.yakuman}倍` : `${w.han}翻 ${w.fu}符`)
+    div("total", w.yakuman ? say("yakuman", w.yakuman) : say("total", w.han, w.fu))
   );
 
   return box;
@@ -846,7 +945,7 @@ function showFinal(v) {
 
   const table = document.createElement("table");
   const head = document.createElement("tr");
-  for (const label of hasUma ? ["順位", "", "点数", "順位点"] : ["順位", "", "点数"]) {
+  for (const label of hasUma ? [say("rank"), "", say("score"), say("uma")] : [say("rank"), "", say("score")]) {
     const th = document.createElement("th");
     th.textContent = label;
     head.append(th);
@@ -854,7 +953,7 @@ function showFinal(v) {
   table.append(head);
   for (const entry of rows) {
     const row = document.createElement("tr");
-    const cells = [`${entry.rank}位`, v.seats[entry.seat].name, entry.score.toLocaleString()];
+    const cells = [say("rankOf", entry.rank), seatLabel(entry.seat), entry.score.toLocaleString()];
     if (hasUma) cells.push((entry.uma > 0 ? "+" : "") + entry.uma.toLocaleString());
     cells.forEach((text, col) => {
       const td = document.createElement("td");
@@ -871,7 +970,7 @@ function showFinal(v) {
   el.finalBody.append(table);
   const replayBtn = $("finalReplay");
   replayBtn.disabled = !S.recordId;
-  replayBtn.title = S.recordId ? "" : "この対局は保存されていません";
+  replayBtn.title = S.recordId ? "" : say("notSaved");
   el.resultPanel.hidden = true;
   el.finalPanel.hidden = false;
   el.overlay.hidden = false;
@@ -900,7 +999,7 @@ $("finalAgain").addEventListener("click", async () => {
 
 $("finalReplay").addEventListener("click", async () => {
   if (!S.recordId) {
-    el.status.textContent = "この対局は保存されていません";
+    el.status.textContent = say("notSaved");
     return;
   }
   el.overlay.hidden = true;
@@ -964,31 +1063,33 @@ function renderReplayBar(v) {
   const span = roundOf(S.index);
   const within = S.index - span.start + 1;
   const total = span.end - span.start + 1;
-  const event = v.step && v.step.event ? describeEvent(v, v.step.event) : "配牌";
-  const text = `${span.label}  ${within}/${total}  ${event}`;
+  const event = v.step && v.step.event ? describeEvent(v, v.step.event) : say("deal");
+  const round = roundLabel(v.round) + (v.round.honba ? say("honba", v.round.honba) : "");
+  const text = `${round}  ${within}/${total}  ${event}`;
   el.replayLabel.textContent = text;
   el.replayLabel.title = text;
 }
 
 function describeEvent(v, event) {
-  const who = v.seats[event.seat] ? `${WINDS[v.seats[event.seat].wind]}家` : "";
-  const tiles = (event.tiles || []).length ? ` ${event.tiles.map(tileName).join("")}` : "";
-  return `${who} ${event.kind}${tiles}`.trim();
+  const who = v.seats[event.seat] ? seatLabel(event.seat) : "";
+  const kind = say("event")[event.kind] ?? event.kind;
+  const tiles = (event.tiles || []).length ? ` ${event.tiles.map(tileName).join(S.lang === "en" ? " " : "")}` : "";
+  return `${who} ${kind}${tiles}`.trim();
 }
 
 function tileName(tile) {
-  if (tile >= 34) return ["赤5m", "赤5p", "赤5s"][tile - 34];
+  if (tile >= 34) return say("redFive", ["5m", "5p", "5s"][tile - 34]);
   if (tile < 9) return `${tile + 1}m`;
   if (tile < 18) return `${tile - 8}p`;
   if (tile < 27) return `${tile - 17}s`;
-  return ["東", "南", "西", "北", "白", "發", "中"][tile - 27];
+  return say("honours")[tile - 27];
 }
 
 /** Auto-play walks the record one step at a time at the same pace a live game
  *  is drawn, and stops on a round result so the overlay can be read. */
 function updateAutoButton() {
   const button = $("replayAuto");
-  button.textContent = S.autoOn ? "停止" : "再生";
+  button.textContent = S.autoOn ? say("stop") : say("play");
   button.classList.toggle("playing", S.autoOn);
 }
 
@@ -1135,16 +1236,17 @@ async function refreshRecords() {
     const records = await api.records();
     el.recordList.textContent = "";
     if (!records.length) {
-      el.recordList.append(div("hint", "保存された牌譜はありません。"));
+      el.recordList.append(div("hint", say("noRecords")));
       return;
     }
     for (const record of records) {
       const button = document.createElement("button");
       button.className = "record";
       const when = new Date(record.createdAt).toLocaleString();
-      const mode = { half: "半荘", east: "東風", single: "一局" }[record.roundMode] || record.roundMode;
-      const rule = record.env === "red_4p" ? "赤あり" : "赤なし";
-      button.append(div("when", `${when} ・ ${rule} ${mode}${record.complete ? "" : " ・ 中断"}`));
+      const mode = say("modes")[record.roundMode] || record.roundMode;
+      const rule = say("redRule", record.env === "red_4p");
+      const unfinished = record.complete ? "" : say("sep") + say("unfinished");
+      button.append(div("when", `${when}${say("sep")}${rule} ${mode}${unfinished}`));
       button.append(div("who", record.players.map((p) => p.name).join(" / ")));
       button.addEventListener("click", () => openReplay(record));
       el.recordList.append(button);
@@ -1181,7 +1283,7 @@ async function startGame(body) {
   S.lastGameRequest = body;
   S.recordId = null;
   clearCallouts();
-  el.status.textContent = "準備中…";
+  el.status.textContent = say("starting");
   try {
     const data = await api.createGame(body);
     if (data.gameId === null) {
@@ -1227,7 +1329,7 @@ $("endBtn").addEventListener("click", async () => {
 async function openReplay(record) {
   openDrawer(false);
   stopAuto();
-  el.status.textContent = "牌譜を読み込み中…";
+  el.status.textContent = say("loading");
   try {
     const replay = embedded ? embedded.replay : await api.openReplay(record.id);
     S.mode = "replay";
@@ -1241,7 +1343,7 @@ async function openReplay(record) {
     replay.seats.forEach((seat, i) => {
       const option = document.createElement("option");
       option.value = String(i);
-      option.textContent = `${i + 1}. ${seat.name}`;
+      option.textContent = seatLabel(i);
       el.viewpoint.append(option);
     });
     el.viewpoint.value = String(S.viewpoint);
@@ -1263,9 +1365,38 @@ $("optDelay").addEventListener("input", (e) => {
   $("optDelayValue").textContent = `${S.delay}ms`;
 });
 
+/** index.html's fixed words: each element keeps its Japanese the first time it
+ *  is switched, and takes its English from data-en (or data-en-*, for an
+ *  attribute). */
+const SWAPPED_ATTRIBUTES = [
+  ["title", "[data-en-title]", "enTitle", "jaTitle"],
+  ["aria-label", "[data-en-label]", "enLabel", "jaLabel"],
+  ["placeholder", "[data-en-placeholder]", "enPlaceholder", "jaPlaceholder"],
+];
+
+function applyLang() {
+  document.documentElement.lang = S.lang;
+  for (const node of document.querySelectorAll("[data-en]")) {
+    if (node.dataset.ja === undefined) node.dataset.ja = node.textContent;
+    node.textContent = S.lang === "en" ? node.dataset.en : node.dataset.ja;
+  }
+  for (const [attribute, selector, en, ja] of SWAPPED_ATTRIBUTES) {
+    for (const node of document.querySelectorAll(selector)) {
+      if (node.dataset[ja] === undefined) node.dataset[ja] = node.getAttribute(attribute) || "";
+      node.setAttribute(attribute, S.lang === "en" ? node.dataset[en] : node.dataset[ja]);
+    }
+  }
+}
+
 $("optLang").addEventListener("change", (e) => {
   S.lang = e.target.value;
-  if (S.current) render(S.current);
+  applyLang();
+  updateAutoButton();
+  if (!embedded) refreshRecords();
+  if (!S.current) return;
+  const standings = !el.finalPanel.hidden;
+  render(S.current);
+  if (standings) showFinal(S.current);
 });
 
 for (const [id, key] of [["optHide", "hide_hands"], ["optNoCalls", "no_calls"]]) {
@@ -1341,7 +1472,7 @@ async function openEmbedded(node) {
   try {
     embedded = await unpack(node.textContent);
   } catch (err) {
-    el.status.textContent = `このページを開けません: ${err.message}`;
+    el.status.textContent = say("cannotOpen", err.message);
     return;
   }
   await openReplay(null);

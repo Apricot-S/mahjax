@@ -504,7 +504,7 @@ class StateReplay(Replay):
     the end of each round, so their rounds just follow one another.
     """
 
-    def __init__(self, states: Any, *, names: Optional[Sequence[str]] = None) -> None:
+    def __init__(self, states: Any) -> None:
         # The serving half of ``Replay`` (frames, spans, results) is shared; only
         # the frames come from the caller instead of a re-run.
         self.id = uuid.uuid4().hex
@@ -515,8 +515,7 @@ class StateReplay(Replay):
         self.rules = rules_for(env_id)
         self.round_mode = None
         self.env = None
-        names = list(names) if names is not None else [f"Player {i + 1}" for i in range(NUM_PLAYERS)]
-        self.seats = [SeatInfo(name=names[i], kind="agent") for i in range(NUM_PLAYERS)]
+        self.seats = [SeatInfo(name=f"Player {i}", kind="agent") for i in range(NUM_PLAYERS)]
         self.human_seat = None
         self._states = []
         self._steps = []

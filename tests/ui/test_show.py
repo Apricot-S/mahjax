@@ -118,16 +118,15 @@ def test_outside_a_notebook_show_saves_a_page_that_carries_everything(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
 ) -> None:
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
-    names = ["A", "B", "C", "D"]
-    show(_rollout(), names=names)
+    show(_rollout())
     (path,) = tmp_path.glob("mahjax-*.html")
     assert str(path) in capsys.readouterr().out
     page = path.read_text(encoding="utf-8")
     assert "/static/" not in page  # the script and the styles are inline
     data = _carried(page)
-    replay = StateReplay(_rollout(), names=names)
+    replay = StateReplay(_rollout())
     assert data["frames"] == json.loads(json.dumps(replay.frames(0, replay.total)))
-    assert [seat["name"] for seat in data["replay"]["seats"]] == names
+    assert [seat["name"] for seat in data["replay"]["seats"]] == ["Player 0", "Player 1", "Player 2", "Player 3"]
     assert {name: len(files) for name, files in data["tiles"].items()} == {"ja": 40, "en": 40}
 
 

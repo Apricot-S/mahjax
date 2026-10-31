@@ -7,20 +7,22 @@
 <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
+<!-- The words here are the Japanese; data-en, data-en-title, data-en-label and
+     data-en-placeholder hold the English the 言語 menu switches to. -->
 
 <header class="topbar">
-  <button id="menuBtn" class="icon-btn" aria-label="メニュー" aria-expanded="false">☰</button>
+  <button id="menuBtn" class="icon-btn" aria-label="メニュー" data-en-label="Menu" aria-expanded="false">☰</button>
   <span class="brand">mahjax</span>
   <span id="status" class="status" role="status"></span>
   <span class="grow"></span>
   <div id="replayTools" class="replay-tools" hidden>
-    <label>視点
+    <label><span data-en="View">視点</span>
       <select id="viewpoint"></select>
     </label>
-    <label>手牌
+    <label><span data-en="Hands">手牌</span>
       <select id="showAll">
-        <option value="1">全員</option>
-        <option value="0">視点のみ</option>
+        <option value="1" data-en="All">全員</option>
+        <option value="0" data-en="Viewpoint only">視点のみ</option>
       </select>
     </label>
   </div>
@@ -33,90 +35,90 @@
     <div id="actions" class="actions"></div>
   </div>
   <div id="empty" class="empty server-only">
-    <p>対局を始めるか、牌譜を開いてください。</p>
-    <button id="emptyStart" class="primary">対局を始める</button>
+    <p data-en="Start a game, or open a record.">対局を始めるか、牌譜を開いてください。</p>
+    <button id="emptyStart" class="primary" data-en="Start a game">対局を始める</button>
   </div>
 </main>
 
 <footer id="replayBar" class="replay-bar" hidden>
-  <button data-jump="first" class="icon-btn" title="最初へ">|◀</button>
-  <button data-jump="prevRound" class="icon-btn" title="前の局へ">◀局</button>
-  <button data-jump="prev" class="icon-btn" title="1手戻す">◀</button>
+  <button data-jump="first" class="icon-btn" title="最初へ" data-en-title="First">|◀</button>
+  <button data-jump="prevRound" class="icon-btn" title="前の局へ" data-en-title="Previous round" data-en="◀◀">◀局</button>
+  <button data-jump="prev" class="icon-btn" title="1手戻す" data-en-title="Back one step">◀</button>
   <span id="replayLabel" class="replay-label"></span>
-  <button data-jump="next" class="icon-btn" title="1手進める">▶</button>
-  <button data-jump="nextRound" class="icon-btn" title="次の局へ">局▶</button>
-  <button data-jump="last" class="icon-btn" title="最後へ">▶|</button>
-  <button id="replayAuto" class="icon-btn auto" title="自動再生">再生</button>
+  <button data-jump="next" class="icon-btn" title="1手進める" data-en-title="Forward one step">▶</button>
+  <button data-jump="nextRound" class="icon-btn" title="次の局へ" data-en-title="Next round" data-en="▶▶">局▶</button>
+  <button data-jump="last" class="icon-btn" title="最後へ" data-en-title="Last">▶|</button>
+  <button id="replayAuto" class="icon-btn auto" title="自動再生" data-en-title="Play automatically">再生</button>
 </footer>
 
 <div id="scrim" class="scrim" hidden></div>
 
-<aside id="drawer" class="drawer" hidden aria-label="メニュー">
+<aside id="drawer" class="drawer" hidden aria-label="メニュー" data-en-label="Menu">
   <section class="server-only">
-    <h2>新規対局</h2>
-    <label>ルール
+    <h2 data-en="New game">新規対局</h2>
+    <label><span data-en="Rules">ルール</span>
       <select id="cfgEnv">
-        <option value="red_4p">赤あり</option>
-        <option value="no_red_4p">赤なし</option>
+        <option value="red_4p" data-en="Red fives">赤あり</option>
+        <option value="no_red_4p" data-en="No red fives">赤なし</option>
       </select>
     </label>
-    <label>長さ
+    <label><span data-en="Length">長さ</span>
       <select id="cfgMode">
-        <option value="half">半荘</option>
-        <option value="east">東風</option>
-        <option value="single">一局</option>
+        <option value="half" data-en="Half game">半荘</option>
+        <option value="east" data-en="East only">東風</option>
+        <option value="single" data-en="One round">一局</option>
       </select>
     </label>
-    <label>相手
+    <label><span data-en="Opponent">相手</span>
       <select id="cfgAgent"></select>
     </label>
-    <label>自席
+    <label><span data-en="Your seat">自席</span>
       <select id="cfgSeat">
-        <option value="random">ランダム</option>
-        <option value="0">東</option>
-        <option value="1">南</option>
-        <option value="2">西</option>
-        <option value="3">北</option>
-        <option value="none">なし（エージェント同士）</option>
+        <option value="random" data-en="Random">ランダム</option>
+        <option value="0" data-en="East">東</option>
+        <option value="1" data-en="South">南</option>
+        <option value="2" data-en="West">西</option>
+        <option value="3" data-en="North">北</option>
+        <option value="none" data-en="None (agents only)">なし（エージェント同士）</option>
       </select>
     </label>
-    <label>シード
-      <input id="cfgSeed" type="number" min="0" placeholder="空欄でランダム">
+    <label><span data-en="Seed">シード</span>
+      <input id="cfgSeed" type="number" min="0" placeholder="空欄でランダム" data-en-placeholder="Random if empty">
     </label>
-    <label>名前
+    <label><span data-en="Name">名前</span>
       <input id="cfgName" type="text" value="You">
     </label>
     <label class="check">
-      <input id="cfgSave" type="checkbox" checked> 対局記録を保存
+      <input id="cfgSave" type="checkbox" checked> <span data-en="Save the record">対局記録を保存</span>
     </label>
-    <button id="startBtn" class="primary">開始</button>
+    <button id="startBtn" class="primary" data-en="Start">開始</button>
   </section>
 
   <section>
-    <h2>対局中の設定</h2>
+    <h2 data-en="Settings">対局中の設定</h2>
     <label class="check server-only">
-      <input id="optHide" type="checkbox" checked> 相手の手牌を隠す
+      <input id="optHide" type="checkbox" checked> <span data-en="Hide the opponents' hands">相手の手牌を隠す</span>
     </label>
     <label class="check server-only">
-      <input id="optNoCalls" type="checkbox"> 鳴きなし
+      <input id="optNoCalls" type="checkbox"> <span data-en="No calls">鳴きなし</span>
     </label>
-    <label>手の間隔
+    <label><span data-en="Move delay">手の間隔</span>
       <input id="optDelay" type="range" min="0" max="1600" step="100" value="700">
       <span id="optDelayValue" class="hint">700ms</span>
     </label>
-    <label>言語
+    <label><span data-en="Language">言語</span>
       <select id="optLang">
         <option value="ja">日本語</option>
         <option value="en">English</option>
       </select>
     </label>
-    <button id="endBtn" class="danger server-only">対局を終了</button>
+    <button id="endBtn" class="danger server-only" data-en="End the game">対局を終了</button>
   </section>
 
   <section class="server-only">
-    <h2>牌譜</h2>
+    <h2 data-en="Records">牌譜</h2>
     <div id="recordList" class="record-list"></div>
-    <button id="refreshRecords" class="ghost">再読み込み</button>
+    <button id="refreshRecords" class="ghost" data-en="Reload">再読み込み</button>
   </section>
 </aside>
 
@@ -129,12 +131,12 @@
     </div>
   </div>
   <div id="finalPanel" class="result" role="dialog" aria-modal="true" hidden>
-    <h2>終局</h2>
+    <h2 data-en="Final standings">終局</h2>
     <div id="finalBody"></div>
     <div class="result-actions">
-      <button id="finalQuit" class="ghost">終了</button>
-      <button id="finalAgain" class="primary">もう一局</button>
-      <button id="finalReplay">解析</button>
+      <button id="finalQuit" class="ghost" data-en="Quit">終了</button>
+      <button id="finalAgain" class="primary" data-en="Play again">もう一局</button>
+      <button id="finalReplay" data-en="Review">解析</button>
     </div>
   </div>
 </div>

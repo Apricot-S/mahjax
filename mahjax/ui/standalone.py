@@ -26,7 +26,7 @@ import html
 import json
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Union
 
 from .record import StateReplay
 
@@ -35,7 +35,7 @@ TILE_DIR = Path(__file__).resolve().parents[1] / "_src" / "assets" / "tiles"
 TILE_SETS = ("ja", "en")
 
 
-def show(states: Any, *, names: Optional[Sequence[str]] = None, height: int = 640) -> None:
+def show(states: Any, *, height: int = 640) -> None:
     """Show a state, or play a list of states back, on the replay screen.
 
     ``states`` is one unbatched state, a list of them, or a state with a leading
@@ -43,7 +43,7 @@ def show(states: Any, *, names: Optional[Sequence[str]] = None, height: int = 64
     cell's output, ``height`` pixels tall; anywhere else it is saved to a
     temporary HTML file, and the file's path is printed.
     """
-    page = _page(StateReplay(states, names=names))
+    page = _page(StateReplay(states))
     if _in_notebook():
         from IPython.display import display
 
@@ -58,12 +58,10 @@ def show(states: Any, *, names: Optional[Sequence[str]] = None, height: int = 64
     print(f"MahJax: open {file.name} in a browser")
 
 
-def save_html(
-    states: Any, path: Union[str, Path], *, names: Optional[Sequence[str]] = None
-) -> None:
+def save_html(states: Any, path: Union[str, Path]) -> None:
     """Save the replay screen of ``states`` (as ``show`` takes them) to one HTML
     file, which any browser opens with no server."""
-    Path(path).write_text(_page(StateReplay(states, names=names)), encoding="utf-8")
+    Path(path).write_text(_page(StateReplay(states)), encoding="utf-8")
 
 
 def _page(replay: StateReplay) -> str:
