@@ -41,7 +41,7 @@ class Meld:
         return EMPTY_MELD
 
     @staticmethod
-    def is_empty(meld: Array) -> bool:
+    def is_empty(meld: Array) -> Array:
         return meld == EMPTY_MELD
 
     @staticmethod
@@ -107,32 +107,32 @@ class Meld:
         return is_chi.astype(jnp.int32) << pos
 
     @staticmethod
-    def is_kan(meld: Array) -> bool:
+    def is_kan(meld: Array) -> Array:
         is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)
         return ((action == Action.OPEN_KAN) | Action.is_selfkan(action)) & (~is_emp)
 
     @staticmethod
-    def is_closed_kan(meld: Array) -> bool:
+    def is_closed_kan(meld: Array) -> Array:
         is_emp = Meld.is_empty(meld)
         src = Meld.src(meld)
         action = Meld.action(meld)
         return (src == 0) & Action.is_selfkan(action) & (~is_emp)
 
     @staticmethod
-    def is_added_kan(meld: Array) -> bool:
+    def is_added_kan(meld: Array) -> Array:
         is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)
         return Action.is_selfkan(action) & (Meld.src(meld) != 0) & (~is_emp)
 
     @staticmethod
-    def is_chi(meld: Array) -> bool:
+    def is_chi(meld: Array) -> Array:
         is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)
         return (((Action.CHI_L <= action) & (action <= Action.CHI_R)) | ((Action.CHI_L_RED <= action) & (action <= Action.CHI_R_RED))) & (~is_emp)
 
     @staticmethod
-    def is_pon(meld: Array) -> bool:
+    def is_pon(meld: Array) -> Array:
         is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)
         return ((action == Action.PON) | (action == Action.PON_RED)) & (~is_emp)

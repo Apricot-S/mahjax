@@ -75,8 +75,9 @@ def _replace_state(state: State, **updates) -> State:
     player's row; ``_advance_to_next_decision`` then narrows it to the claims open
     to them.
     """
-    player_fields = _field_names(type(state.players))
-    round_fields = _field_names(type(state.round_state))
+    # A class is hashable; mypy does not see that through Any.
+    player_fields = _field_names(type(state.players))  # type: ignore[arg-type]
+    round_fields = _field_names(type(state.round_state))  # type: ignore[arg-type]
     env_updates = {}
     player_updates = {}
     round_updates = {}
@@ -287,7 +288,7 @@ def _promote_next_draw_yaku(state: State, player: Array) -> State:
     )
 
 
-def _init(state_cls: type, rng: PRNGKey, game_config: Optional[GameConfig] = None) -> State:
+def _init(state_cls: type[Any], rng: PRNGKey, game_config: Optional[GameConfig] = None) -> State:
     """
     Initialize a game in a state of ``state_cls``, whose ``constants`` set the table.
 
@@ -1069,7 +1070,7 @@ def _accept_riichi(state: State, game_config: Optional[GameConfig] = None) -> St
     return state
 
 
-def _is_waiting_tile(can_ron: Array, tile: int) -> bool:
+def _is_waiting_tile(can_ron: Array, tile: Array) -> Array:
     """
     Check if the tile is a waiting tile
     """

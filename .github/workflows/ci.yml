@@ -96,3 +96,28 @@ jobs:
       - name: Run Ruff
         run: |
           ruff check --output-format=github .
+
+  types:
+    # What mypy reports follows JAX's type stubs, which change between releases,
+    # so JAX is pinned here as well as mypy. It pins only this check: mahjax
+    # itself runs on any JAX its Python allows.
+    name: Run mypy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install mypy and the dependencies
+        run: |
+          pip install -U pip
+          pip install -e . --group typing "jax==0.12.0.1"
+
+      - name: Run mypy
+        run: |
+          mypy mahjax

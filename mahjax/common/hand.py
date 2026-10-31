@@ -105,7 +105,7 @@ class Hand:
         )
 
     @staticmethod
-    def can_chi(hand: Array, tile: Array, action: Array) -> bool:
+    def can_chi(hand: Array, tile: Array, action: Array) -> Array:
         is_red_chi = Hand._is_red_chi_action(action)
         return jax.lax.select(
             is_red_chi,
@@ -114,7 +114,7 @@ class Hand:
         )
 
     @staticmethod
-    def can_no_red_chi(hand: Array, tile: Array, action: Array) -> bool:
+    def can_no_red_chi(hand: Array, tile: Array, action: Array) -> Array:
         hand_nr = hand if hand.shape[0] == Tile.NUM_TILE_TYPE_WITH_RED else Hand.to_34(hand)
         tile_type = Tile.to_tile_type(tile)
         chi_idx = Hand._chi_index(action)
@@ -134,7 +134,7 @@ class Hand:
         return can_black_chi & (tile_type < 27)
 
     @staticmethod
-    def can_red_chi(hand: Array, tile: Array, action: Array) -> bool:
+    def can_red_chi(hand: Array, tile: Array, action: Array) -> Array:
         hand_34 = Hand.to_34(hand)
         tile_type = Tile.to_tile_type(tile)
         chi_idx = Hand._chi_index(action)
@@ -151,24 +151,24 @@ class Hand:
         return can_black_chi & has_red_neighbor & (tile_type < 27)
 
     @staticmethod
-    def can_pon(hand: Array, tile: Array) -> bool:
+    def can_pon(hand: Array, tile: Array) -> Array:
         return Hand.can_no_red_pon(hand, tile) | Hand.can_red_pon(hand, tile)
 
     @staticmethod
-    def can_no_red_pon(hand: Array, tile: Array) -> bool:
+    def can_no_red_pon(hand: Array, tile: Array) -> Array:
         tile_type = Tile.to_tile_type(tile)
         hand_nr = hand if hand.shape[0] == Tile.NUM_TILE_TYPE_WITH_RED else Hand.to_34(hand)
         return hand_nr[tile_type] >= 2
 
     @staticmethod
-    def can_red_pon(hand: Array, tile: Array) -> bool:
+    def can_red_pon(hand: Array, tile: Array) -> Array:
         if hand.shape[0] != Tile.NUM_TILE_TYPE_WITH_RED:
             return jnp.bool_(False)
         tile_type = Tile.to_tile_type(tile)
         return Tile.is_tile_type_five(tile_type) & (hand[tile_type] > 0) & (hand[Tile.to_red(tile_type)] > 0)
 
     @staticmethod
-    def can_open_kan(hand: Array, tile: Array) -> bool:
+    def can_open_kan(hand: Array, tile: Array) -> Array:
         tile_type = Tile.to_tile_type(tile)
         hand_34 = Hand.to_34(hand)
         if hand.shape[0] != Tile.NUM_TILE_TYPE_WITH_RED:
@@ -180,13 +180,13 @@ class Hand:
         )
 
     @staticmethod
-    def can_added_kan(hand: Array, tile: Array) -> bool:
+    def can_added_kan(hand: Array, tile: Array) -> Array:
         tile_type = Tile.to_tile_type(tile)
         hand_34 = Hand.to_34(hand)
         return hand_34[tile_type] == 1
 
     @staticmethod
-    def can_closed_kan(hand: Array, tile: Array) -> bool:
+    def can_closed_kan(hand: Array, tile: Array) -> Array:
         tile_type = Tile.to_tile_type(tile)
         hand_34 = Hand.to_34(hand)
         if hand.shape[0] != Tile.NUM_TILE_TYPE_WITH_RED:
@@ -198,7 +198,7 @@ class Hand:
         )
 
     @staticmethod
-    def can_closed_kan_after_riichi(hand: Array, tile: Array, original_can_win: Array) -> bool:
+    def can_closed_kan_after_riichi(hand: Array, tile: Array, original_can_win: Array) -> Array:
         tile_type = Tile.to_tile_type(tile)
 
         def _check_identity():
@@ -246,7 +246,7 @@ class Hand:
         return jax.vmap(lambda i: (hand[i] != 0) & Hand.is_tenpai(Hand.sub(hand, i)))(jnp.arange(Tile.NUM_TILE_TYPE)).any()
 
     @staticmethod
-    def can_kyuushu(hand: Array) -> bool:
+    def can_kyuushu(hand: Array) -> Array:
         hand_34 = Hand.to_34(hand)
         return jnp.sum((hand_34 * Hand.KYUUSHU_MASK) > 0) >= 9
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import abc
-from typing import TYPE_CHECKING, Any, Literal, Optional, Tuple, Union, get_args, overload
+from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, Union, get_args, overload
 
 import jax.numpy as jnp
 
@@ -172,8 +172,8 @@ class Env(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def observation_shape(self) -> Tuple[int, ...]:
-        """Return the matrix shape of observation"""
+    def observation_shape(self) -> Dict[str, Tuple[int, ...]]:
+        """The shape of each key of the observation."""
         ...
 
     @property
@@ -208,6 +208,10 @@ def make(env_id: Literal["no_red_4p", "red_4p"], **kwargs: Any) -> "Mahjong4p": 
 
 @overload
 def make(env_id: Literal["no_red_3p", "red_3p"], **kwargs: Any) -> "Mahjong3p": ...
+
+
+@overload
+def make(env_id: EnvId, **kwargs: Any) -> "Union[Mahjong4p, Mahjong3p]": ...
 
 
 def make(env_id: EnvId, **kwargs) -> "Union[Mahjong4p, Mahjong3p]":  # noqa: C901
@@ -254,8 +258,8 @@ def rule_based_player(state: Any, rng: PRNGKey) -> Array:
         action = act(state, jax.random.PRNGKey(0))
         ```
     """
-    if state.constants.NUM_PLAYERS == 3:
-        from mahjax.mahjong_3p.players import rule_based_player as play
-    else:
-        from mahjax.mahjong_4p.players import rule_based_player as play
+    from mahjax.mahjong_3p.players import rule_based_player as play_3p
+    from mahjax.mahjong_4p.players import rule_based_player as play_4p
+
+    play = play_3p if state.constants.NUM_PLAYERS == 3 else play_4p
     return play(state, rng)

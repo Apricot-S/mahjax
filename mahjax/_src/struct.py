@@ -153,7 +153,7 @@ def dataclass(clz: _T) -> _T:  # noqa: C901
         def keypaths(_):
             return [jax.tree_util.AttributeKeyPathEntry(name) for name in data_fields]
 
-        jax.tree_util.register_keypaths(data_clz, keypaths)
+        jax.tree_util.register_keypaths(data_clz, keypaths)  # type: ignore[attr-defined]  # JAX without keys only
 
     def to_state_dict(x):
         state_dict = {

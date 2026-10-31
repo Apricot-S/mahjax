@@ -304,7 +304,9 @@ def paint(path: Path) -> bool:
     # Keep the group tag exactly as it was. A path's own fill beats the one it
     # would inherit, so the colours below still win, and generate_en_tiles.py,
     # which copies this tag into the English set, keeps producing what it did.
-    group = re.search(r"<g[^>]*>", svg).group(0)
+    group_tag = re.search(r"<g[^>]*>", svg)
+    assert group_tag is not None  # svg.index("<g") above has found one
+    group = group_tag.group(0)
     body = "".join(
         _path(" ".join(parts), colour, base if colour == suit_colour else "")
         for colour, parts in by_colour.items()
