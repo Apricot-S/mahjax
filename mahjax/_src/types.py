@@ -16,8 +16,11 @@
 # limitations under the License.
 
 
-from typing import Any
+import jax
+import jax.typing
 
-# typing only for documentation
-Array = Any
-PRNGKey = Any
+Array = jax.Array
+# For a parameter that may also be given a Python or NumPy number, such as an
+# ``Action`` constant or a literal.
+ArrayLike = jax.typing.ArrayLike
+PRNGKey = jax.Array

@@ -44,7 +44,7 @@ def hand_counts_to_idx(counts: Array, fill: int = -1, hand_size: int = 14) -> Ar
     out = jnp.where(out == fill, fill, out).astype(jnp.int32)
     return out
 
-def _observe_dict(state: State) -> Dict:
+def _observe_dict(state: State) -> Dict[str, Array]:
     """Observation for the current player at the 3-player table. It has the 4-player
     observation's keys with three seats where that has four (scores, riichi, ippatsu,
     is_hand_concealed, melds rows, relative seats in [0, 2], prevalent_wind is
@@ -377,14 +377,14 @@ def _observe_dict(state: State) -> Dict:
     }
 
 
-def _observe_2D(state: State) -> Array:
+def _observe_2D(state: State) -> None:
     """
     TBD
     """
     pass
 
 
-def _observe_privileged_dict(state: State) -> Dict:
+def _observe_privileged_dict(state: State) -> Dict[str, Array]:
     """``_observe_dict`` plus the OTHER players' concealed hands.
 
     This is HIDDEN INFORMATION and must never reach a policy that will be evaluated
@@ -411,7 +411,7 @@ def _observe_privileged_dict(state: State) -> Dict:
     )
     return obs
 
-def _observe_privileged_2D(state: State) -> Array:
+def _observe_privileged_2D(state: State) -> None:
     """
     TBD
     """

@@ -15,7 +15,7 @@
 
 import jax.numpy as jnp
 
-from mahjax._src.types import Array
+from mahjax._src.types import Array, ArrayLike
 
 from .action import Action
 from .constants import RED_FIVE_TILE_IDS, RED_FIVE_TILE_TYPES
@@ -49,7 +49,7 @@ class Tile:
         return tile >= Tile.NUM_TILE_TYPE
 
     @staticmethod
-    def to_tile_type(tile: Array) -> Array:
+    def to_tile_type(tile: ArrayLike) -> Array:
         tile = jnp.asarray(tile, dtype=jnp.int32)
         return jnp.where(
             tile == Tile.RED_FIVE["m"],
@@ -119,8 +119,8 @@ class River:
         tile: Array,
         player: Array,
         idx: Array,
-        is_tsumogiri: bool,
-        is_riichi: bool,
+        is_tsumogiri: Array,
+        is_riichi: Array,
     ) -> Array:
         tile_u16 = jnp.uint16(tile) & TILE_MASK
         tile_u16 = tile_u16 | BIT_TSUMOGIRI * jnp.uint16(is_tsumogiri)
@@ -132,7 +132,7 @@ class River:
 
     @staticmethod
     def add_meld(
-        river: Array, action: Array, player: Array, idx: Array, src: Array
+        river: Array, action: ArrayLike, player: Array, idx: Array, src: Array
     ) -> Array:
         tile_u16 = river[player, idx]
         meld_type = jnp.where(

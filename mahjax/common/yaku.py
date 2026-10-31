@@ -7,7 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mahjax._src.types import Array
+from mahjax._src.types import Array, ArrayLike
 
 from .hand import Hand
 from .meld import EMPTY_MELD, Meld
@@ -379,7 +379,7 @@ class Yaku:
         prevalent_wind: Array,
         seat_wind: Array,
         dora: Array,
-        use_red_fives: Array = jnp.bool_(True),
+        use_red_fives: ArrayLike = jnp.bool_(True),
         kita: Optional[Array] = None,
     ) -> Tuple[Array, Array, Array]:
         hand = Hand.add(hand, last_tile)
@@ -602,7 +602,7 @@ class Yaku:
         is_ron: Array,
         player: Array,
         rs: Any,
-        use_red_fives: Array = jnp.bool_(True),
+        use_red_fives: ArrayLike = jnp.bool_(True),
     ) -> Tuple[Array, Array, Array]:
         p = jnp.int32(player)
         melds = rs.players.melds[p]
@@ -633,14 +633,14 @@ class Yaku:
         *,
         is_ron: Array,
         is_riichi: Array,
-        is_ippatsu: Array = False,
-        is_robbing_kan: Array = False,
-        is_after_kan: Array = False,
-        is_bottom_of_the_sea: Array = False,
-        is_bottom_of_the_river: Array = False,
-        is_double_riichi: Array = False,
-        is_blessing_of_heaven: Array = False,
-        is_blessing_of_earth: Array = False,
+        is_ippatsu: ArrayLike = False,
+        is_robbing_kan: ArrayLike = False,
+        is_after_kan: ArrayLike = False,
+        is_bottom_of_the_sea: ArrayLike = False,
+        is_bottom_of_the_river: ArrayLike = False,
+        is_double_riichi: ArrayLike = False,
+        is_blessing_of_heaven: ArrayLike = False,
+        is_blessing_of_earth: ArrayLike = False,
     ) -> Tuple[Array, Array, Array, Array]:
         is_ron = jnp.bool_(is_ron)
         is_riichi = jnp.bool_(is_riichi)

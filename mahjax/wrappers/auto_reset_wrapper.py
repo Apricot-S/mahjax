@@ -24,7 +24,7 @@ from typing import Optional
 import jax
 import jax.numpy as jnp
 
-from mahjax._src.types import Array, PRNGKey
+from mahjax._src.types import ArrayLike, PRNGKey
 from mahjax.core import State
 
 FALSE = jnp.bool_(False)
@@ -33,7 +33,7 @@ FALSE = jnp.bool_(False)
 def auto_reset(step_fn, init_fn):
     """Auto reset wrapper."""
 
-    def wrapped_step_fn(state: State, action: Array, key: Optional[PRNGKey] = None):
+    def wrapped_step_fn(state: State, action: ArrayLike, key: Optional[PRNGKey] = None):
         assert key is not None, ()
 
         key1, key2 = jax.random.split(key)
