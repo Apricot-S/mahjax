@@ -15,7 +15,6 @@
 import abc
 from typing import Literal, Optional, Tuple, get_args
 
-import jax
 import jax.numpy as jnp
 
 from mahjax._src.struct import dataclass
