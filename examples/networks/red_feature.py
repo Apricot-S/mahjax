@@ -123,7 +123,8 @@ class ObservationTokenizer(nn.Module):
         stable against reordering and lets each table say what it is.
         """
         D = self.D_MODEL
-        emb = lambda n: nn.Embed(n, D, embedding_init=orthogonal_init())
+        def emb(n):
+            return nn.Embed(n, D, embedding_init=orthogonal_init())
 
         # Shared across segments.
         self.tile_emb = emb(NUM_TILE_TYPE + 1)      # row 0 = "no tile", type t at t+1

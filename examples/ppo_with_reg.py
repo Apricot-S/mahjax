@@ -15,20 +15,21 @@ import jax
 import jax.numpy as jnp
 import optax
 import wandb
+from flax.training.train_state import TrainState
+from jax import lax
+from omegaconf import OmegaConf
+from pydantic import BaseModel
+
+import mahjax
+from mahjax.wrappers.auto_reset_wrapper import auto_reset
+
 from bc import visualize_game
 from common import (
     default_bc_params_path,
     default_rl_params_path,
     get_network_cls,
 )
-from flax.training.train_state import TrainState
-from jax import lax
-from omegaconf import OmegaConf
-from pydantic import BaseModel
 from utils import make_eval_fn
-
-import mahjax
-from mahjax.wrappers.auto_reset_wrapper import auto_reset
 
 # Constants
 MAX_REWARD = 320.0  # Normalization factor for reward
@@ -77,7 +78,8 @@ class PPOWithRegArgs(BaseModel):
     viz_max_steps: int = 1000
     viz_out_dir: str = "fig"
     viz_filename: str = "ppo_with_reg_agent_game.html"
-    class args: extra = "forbid"
+    class args:
+        extra = "forbid"
 
 args = PPOWithRegArgs(**OmegaConf.to_object(OmegaConf.from_cli()))
 NETWORK_CLS = get_network_cls(args.env_name)
@@ -89,7 +91,8 @@ BASE_ENV = mahjax.make(args.env_name, round_mode=args.round_mode, observe_type="
 step_fn = auto_reset(BASE_ENV.step, BASE_ENV.init)
 NUM_PLAYERS, NUM_UPDATES = BASE_ENV.num_players, int(args.total_timesteps // (args.num_envs * args.num_steps))
 BATCH_SIZE = args.num_envs * args.num_steps
-if BATCH_SIZE % args.minibatch_size != 0: raise ValueError("minibatch_size error")
+if BATCH_SIZE % args.minibatch_size != 0:
+    raise ValueError("minibatch_size error")
 NUM_MINIBATCHES = BATCH_SIZE // args.minibatch_size
 
 
@@ -156,19 +159,19 @@ def calculate_gae(transitions: Transition):
             reward_accum = jnp.where(done, 0, reward_accum)
             has_next_value = jnp.where(done, False, has_next_value)
             next_value = jnp.where(done, 0, next_value)
-            
+
             reward_accum = reward_accum + reward
             player_reward = reward_accum[player]
             reward_accum = reward_accum.at[player].set(0.0)
-            
+
             td_error = player_reward + args.gamma * next_value[player] - value
             new_gae = td_error + args.gamma * args.gae_lambda * gae[player]
             gae = gae.at[player].set(new_gae)
-            
+
             is_valid = has_next_value[player] | done | next_valid_mask[player]
             advantage = jnp.where(is_valid, new_gae, 0.0)
             target = jnp.where(is_valid, advantage + value, value)
-            
+
             new_carry = (
                 gae, next_value.at[player].set(value), reward_accum,
                 has_next_value.at[player].set(True), done, next_valid_mask.at[player].set(is_valid) | done
@@ -191,7 +194,7 @@ def calculate_gae(transitions: Transition):
 def process_trajectory(transitions: Transition):
     # Calculate GAE
     advantages, targets, valid_mask = calculate_gae(transitions)
-    
+
     # Flatten (B, T, ...) -> (B*T, ...)
     flat_transitions = jax.tree.map(lambda x: x.reshape((BATCH_SIZE,) + x.shape[2:]), transitions)
     advantages = advantages.reshape((BATCH_SIZE, NUM_PLAYERS))
@@ -201,7 +204,7 @@ def process_trajectory(transitions: Transition):
     mask_float = valid_mask.astype(jnp.float32)
     # Normalize Advantage
     advantages = (advantages - masked_mean(advantages, mask_float)) / (jnp.sqrt(masked_mean((advantages - masked_mean(advantages, mask_float))**2, mask_float)) + 1e-8)
-    
+
     return flat_transitions, advantages, targets, valid_mask
 
 
@@ -222,7 +225,8 @@ def make_update_fn(network: nn.Module, use_magnet: bool = False):
             minibatches = jax.tree.map(lambda x: x.reshape((NUM_MINIBATCHES, args.minibatch_size) + x.shape[1:]), batch_shuffled)
 
             def train_minibatch(t_state, minibatch):
-                transition_mb: Transition; adv_mb, target_mb, mask_mb = minibatch[1], minibatch[2], minibatch[3]
+                transition_mb: Transition
+                adv_mb, target_mb, mask_mb = minibatch[1], minibatch[2], minibatch[3]
                 transition_mb = minibatch[0]
 
                 def loss_fn(params):
@@ -270,7 +274,7 @@ def make_update_fn(network: nn.Module, use_magnet: bool = False):
             return (new_train_state, rng_inner), jax.tree.map(jnp.mean, metrics)
 
         (train_state, _), metrics = lax.scan(train_epoch, (train_state, key), None, length=args.update_epochs)
-        
+
         return train_state, jax.tree.map(jnp.mean, metrics)
     return update_parameters
 
@@ -320,19 +324,25 @@ def train(rng_key):
     # Load baseline parameters (used for evaluation comparison)
     if args.pretrained_model_path:
         print(f"Loading baseline: {args.pretrained_model_path}", flush=True)
-        with open(args.pretrained_model_path, "rb") as f: baseline_params = pickle.load(f)
-        if not isinstance(baseline_params, dict): baseline_params = {"params": baseline_params}
+        with open(args.pretrained_model_path, "rb") as f:
+            baseline_params = pickle.load(f)
+        if not isinstance(baseline_params, dict):
+            baseline_params = {"params": baseline_params}
     else:
-        print("Using random baseline.", flush=True); baseline_params = params
+        print("Using random baseline.", flush=True)
+        baseline_params = params
 
     # Anchor parameters for the regularizer. Bound once here and never reassigned.
     use_magnet = args.mag_coef > 0.0
     if use_magnet and args.init_magnet_from_pretrained and args.pretrained_model_path:
         print(f"Loading anchor: {args.pretrained_model_path}", flush=True)
-        with open(args.pretrained_model_path, "rb") as f: magnet_params = pickle.load(f)
-        if not isinstance(magnet_params, dict): magnet_params = {"params": magnet_params}
+        with open(args.pretrained_model_path, "rb") as f:
+            magnet_params = pickle.load(f)
+        if not isinstance(magnet_params, dict):
+            magnet_params = {"params": magnet_params}
     else:
-        print("Using random anchor.", flush=True); magnet_params = params
+        print("Using random anchor.", flush=True)
+        magnet_params = params
     # Initialize environment states
     env_state = jax.vmap(BASE_ENV.init)(jax.random.split(key_reset, args.num_envs))
 
@@ -347,7 +357,8 @@ def train(rng_key):
     def eval_and_log(rng, steps, update_idx, params, magnet_params):
         rng, eval_logs = evaluator_fn(params, magnet_params, rng)
         eval_logs = {k: float(v) for k, v in eval_logs.items()}
-        wandb.log({"steps": steps, "update": update_idx, **eval_logs}); print({"steps": steps, **eval_logs}, flush=True)
+        wandb.log({"steps": steps, "update": update_idx, **eval_logs})
+        print({"steps": steps, **eval_logs}, flush=True)
         return rng
 
     if args.do_eval:

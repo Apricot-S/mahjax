@@ -63,3 +63,26 @@ jobs:
           PYTHONPATH: .
         run: |
           pytest tests/ui -vv
+
+  lint:
+    # Lint only, with the Ruff pinned in pyproject's lint group; the code is not held to `ruff format`.
+    name: Run Ruff
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Ruff
+        run: |
+          pip install -U pip
+          pip install --group lint
+
+      - name: Run Ruff
+        run: |
+          ruff check --output-format=github .

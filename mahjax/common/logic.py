@@ -1054,7 +1054,7 @@ def _accept_riichi(state: State, game_config: Optional[GameConfig] = None) -> St
     state = jax.lax.cond(
         already_riichi,
         lambda: state,
-        lambda: _replace_state(state, 
+        lambda: _replace_state(state,
             riichi=riichi,
             riichi_declared=state.players.riichi_declared.at[l_p].set(FALSE),
             score=jnp.int32(_score),
@@ -1132,7 +1132,6 @@ def _draw_rinshan(state: State, game_config: Optional[GameConfig] = None):
     # once no one has robbed the added kan that led here (see ``_kan``).
     state = _reveal_pending_kan_dora(state, game_config)
     c_p = state.current_player
-    config = _resolve_game_config(game_config)
     n_kan = state.players.n_kan.sum()
     rinshan_tile = state.round_state.deck[_rinshan_ix(state, _replacements_drawn(state))]
     kan_dora_pre_flipped = state.round_state.n_kan_doras.astype(jnp.int32) > n_kan.astype(
@@ -1263,7 +1262,7 @@ def _kan(state: State, action, game_config: Optional[GameConfig] = None):
         face_down.ura_dora_indicators,
         use_red_fives=config.use_red_fives,
     )  # The CURRENT_TILE column only matters for a robbed added kan
-    state = _replace_state(state, 
+    state = _replace_state(state,
         has_yaku=has_yaku,
         fan=fan,
         fu=fu,
@@ -2045,7 +2044,7 @@ def _next_round(
         final_score = _final_score(s)
 
         game_end = _is_game_end(s, will_dealer_continue)
-        return _replace_state(s, 
+        return _replace_state(s,
             current_player=jnp.int8(_next_seat(s.current_player, s.constants.NUM_PLAYERS)),
             terminated=(s.round_state.dummy_count == 0) & game_end,
             dummy_count=jnp.int8(
@@ -2080,11 +2079,11 @@ def _next_round(
         # Determine the next round or end the game
         return jax.lax.cond(
             game_end,
-            lambda: _replace_state(terminated_state, 
+            lambda: _replace_state(terminated_state,
                 current_player=jnp.int8(terminated_state.round_state.dealer),
                 dummy_count=jnp.int8(0),
             ),
-            lambda: _replace_state(next_round_state, 
+            lambda: _replace_state(next_round_state,
                 current_player=jnp.int8(next_round_state.round_state.dealer),
                 dummy_count=jnp.int8(0),
             ),

@@ -34,9 +34,9 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 import jax
 import jax.numpy as jnp
 
-ActFn = Callable[[Any, Any], Any]
-
 from .rules import ENV_IDS
+
+ActFn = Callable[[Any, Any], Any]
 
 
 @dataclass(frozen=True)
