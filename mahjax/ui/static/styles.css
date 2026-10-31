@@ -9,14 +9,18 @@
   --ink-dim: #6a7076;
   --bg: #e7e9e8;
   --bar: #f6f7f7;
-  --board: #ffffff;
+  /* The table is one flat felt; --on-board is what is written and ruled on it. */
+  --board: #27573f;
+  --board-edge: #1b3f2d;
+  --on-board: #f3f4ef;
   --line: #cfd4d3;
-  --board-edge: #b9c0be;
   --accent: #16181a;
   --riichi: #cf3030;
+  /* The dealer's wind: a red that still reads on the felt. */
+  --dealer: #ff6a5c;
   --key: #2f6b4e;
-  /* Whose turn it is. Muted on purpose: red already means dealer and riichi. */
-  --turn: #d9b25c;
+  /* A tile's face. A tile face down is back.svg, a plain blue. */
+  --tile-face: #fbf9f2;
   color-scheme: light;
 }
 
@@ -136,8 +140,8 @@ button.ghost { background: transparent; }
   height: var(--t);
   background: var(--board);
   border: 1px solid var(--board-edge);
-  border-radius: calc(var(--u) * 1.2);
-  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.1);
+  border-radius: calc(var(--u) * 0.5);
+  color: var(--on-board);
   overflow: hidden;
   user-select: none;
 }
@@ -237,13 +241,15 @@ button.ghost { background: transparent; }
   align-content: flex-start;
 }
 
+/* The tile art is the face alone, with no frame. The tile is flat: a hairline
+   is all that marks its edge, enough to part two tiles side by side. */
 img.tile {
   display: block;
   height: var(--h);
   width: auto;
-  border-radius: calc(var(--u) * 0.3);
-  background: #fff;
-  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 calc(var(--u) * 0.12) calc(var(--u) * 0.3) rgba(0, 0, 0, 0.16);
+  border-radius: calc(var(--h) * 0.05);
+  background: var(--tile-face);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.35);
 }
 
 /* A tile turned on its side is H wide and W tall. Give the slot exactly those
@@ -284,9 +290,10 @@ img.tile {
    beside it. On a table it is pushed up against the row in front, which leaves
    the gap behind it, not in front. */
 .river .declared { align-self: flex-start; }
-.river .tsumogiri img.tile { filter: brightness(0.9) saturate(0.7); }
+.river .tsumogiri img.tile { filter: brightness(0.9); }
 .river .taken { opacity: 0.4; }
-.river .last img.tile { box-shadow: 0 0 0 calc(var(--u) * 0.45) var(--accent); }
+/* The last discard is told by its face, not a ring round it. */
+.river .last img.tile { background: #fff2b8; }
 
 .hand-row .playable { cursor: pointer; transition: transform 0.08s ease; }
 .hand-row .playable:hover { transform: translateY(calc(var(--u) * -1.4)); }
@@ -302,9 +309,8 @@ img.tile {
   width: var(--centre);
   height: var(--centre);
   transform: translate(-50%, -50%);
-  border: 1px solid var(--board-edge);
-  border-radius: calc(var(--u) * 0.5);
-  background: #fbfcfb;
+  /* Ruled on the felt, not a panel laid over it. */
+  border: 1px solid rgba(243, 244, 239, 0.55);
 }
 
 .centre-box .info {
@@ -320,9 +326,8 @@ img.tile {
 }
 
 .centre-box .round { font-size: calc(var(--u) * 2.6); font-weight: 700; white-space: nowrap; }
-.centre-box .sticks { font-size: calc(var(--u) * 1.4); color: #3c4247; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.centre-box .sticks { font-size: calc(var(--u) * 1.4); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .centre-box .dora { display: flex; justify-content: center; gap: calc(var(--u) * 0.3); --h: calc(var(--u) * 2.8); }
-.centre-box .dora img.face-down { opacity: 0.4; }
 
 /* Each score plate lies along its own edge of the middle box, the same way the
    seats do: one full-box layer per seat, rotated, plate pinned to its bottom.
@@ -344,20 +349,7 @@ img.tile {
   line-height: 1.2;
   font-size: calc(var(--u) * 1.5);
 }
-.plate .score { font-weight: 700; font-variant-numeric: tabular-nums; font-size: calc(var(--u) * 2.2); }
-
-/* Whose turn it is, as a rail along that player's own edge of the middle box.
-   It sits in the plate's column, so it takes the space the arrow it replaced
-   used to take and nothing above it moves. Kept clear of the wind badge in the
-   corner: the box is 27.4u across and the badge ends 5.9u in. */
-.plate.turn::after {
-  content: "";
-  width: calc(var(--u) * 12);
-  height: calc(var(--u) * 1.1);
-  margin-top: calc(var(--u) * 0.25);
-  border-radius: calc(var(--u) * 0.55);
-  background: var(--turn);
-}
+.plate .score { font-variant-numeric: tabular-nums; font-size: calc(var(--u) * 2.2); }
 
 /* Each seat's wind sits in the corner of the middle box next to that seat.
    Placed inside the rotated layer, so one rule puts all four in their own
@@ -368,20 +360,18 @@ img.tile {
   bottom: calc(var(--u) * 0.8);
   width: calc(var(--u) * 4.8);
   height: calc(var(--u) * 4.8);
-  border-radius: calc(var(--u) * 0.5);
   display: grid;
   place-items: center;
   font-size: calc(var(--u) * 3.1);
   font-weight: 700;
   line-height: 1;
-  background: var(--ink);
-  color: #fff;
 }
 
-.seat-wind.dealer {
-  background: var(--riichi);
-  color: var(--ink);
-}
+.seat-wind.dealer { color: var(--dealer); }
+
+/* Whose turn it is: that seat's wind lights up, like the lamps on an automatic table. */
+.seat-wind.turn { background: var(--on-board); color: var(--board); }
+.seat-wind.dealer.turn { background: var(--dealer); color: #fff; }
 
 /* A riichi stick: white, thin, with the red spot in the middle. */
 .stick {
