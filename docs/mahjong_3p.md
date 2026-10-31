@@ -42,4 +42,5 @@ env = Mahjong3p(round_mode="half", observe_type="dict", game_config=RED)
 - The state has a row per player for three players, plus `players.kita` (the norths each player has set aside) and `round_state.kita_declared`.
 - There are 88 actions: the 4-player ids plus `KITA` (87). The chi ids are never legal.
 - The dict observation has the 4-player keys with three seats where those have four, plus `kita` (3,), seat-rotated like `scores`.
-- The UI (`mahjax.ui`) does not support three players yet.
+- `mahjax.rule_based_player` plays this table too, with its own heuristics in `mahjax.mahjong_3p.players`: no chi, and every north set aside it can.
+- The UI (`mahjax.ui`) plays and shows three players as it does four; see [UI](ui.md).
