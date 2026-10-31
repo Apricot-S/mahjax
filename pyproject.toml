@@ -62,7 +62,9 @@ lint = [
     "ruff==0.17.3",
 ]
 typing = [
-    "mypy>=1.19.1",
+    # Pinned like Ruff: CI installs this group. Its mypy job pins JAX too, since
+    # what mypy reports follows JAX's type stubs.
+    "mypy==2.4.1",
 ]
 test = [
     "pytest>=8.4.2",
