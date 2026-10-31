@@ -1,6 +1,7 @@
+import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import flax.linen as nn
+
 
 # Initialization function
 def orthogonal_init(scale: float = jnp.sqrt(2.0)):

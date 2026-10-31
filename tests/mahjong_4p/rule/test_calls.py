@@ -3,8 +3,8 @@ import jax.numpy as jnp
 from mahjax.common.action import Action
 from mahjax.common.hand import Hand
 from mahjax.common.logic import (
-    _claims_open_to,
     _advance_to_next_decision,
+    _claims_open_to,
     _mask_for_chi,
     _next_meld_player,
     _next_ron_player,

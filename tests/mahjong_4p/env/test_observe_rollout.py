@@ -28,7 +28,6 @@ from mahjax.mahjong_4p.observation import _observe_dict, _observe_privileged_dic
 
 from ..helpers import compiled_env
 
-
 # Long enough to cross the old 200-slot ceiling and several round boundaries.
 ROLLOUT_STEPS = 420
 

@@ -21,8 +21,7 @@ import dataclasses
 from typing import TypeVar
 
 import jax
-from typing_extensions import \
-    dataclass_transform  # pytype: disable=not-supported-yet
+from typing_extensions import dataclass_transform  # pytype: disable=not-supported-yet
 
 has_flax = True
 try:

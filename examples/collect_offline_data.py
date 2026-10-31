@@ -5,14 +5,15 @@ Saves observations, actions, masks, AND returns.
 Optimized for memory efficiency (Small chunks).
 """
 import os
-import sys
 import pickle
+import sys
 import time
-from typing import NamedTuple, Dict
+from typing import Dict, NamedTuple
 
 import jax
 import jax.numpy as jnp
 import numpy as np
+from common import attach_dataset_metadata, default_dataset_path, get_rule_based_player
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 from tqdm import tqdm
@@ -20,7 +21,6 @@ from tqdm import tqdm
 import mahjax
 from mahjax.wrappers.auto_reset_wrapper import auto_reset
 
-from common import attach_dataset_metadata, default_dataset_path, get_rule_based_player
 
 # --- Config ---
 class CollectConfig(BaseModel):

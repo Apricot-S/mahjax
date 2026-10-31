@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-from pathlib import Path
 import importlib.resources as resources
+from pathlib import Path
 
 import jax
 import jax.numpy as jnp

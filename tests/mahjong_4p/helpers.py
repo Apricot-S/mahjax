@@ -11,7 +11,6 @@ from mahjax.mahjong_4p.config import RED
 from mahjax.mahjong_4p.env import Mahjong4p
 from mahjax.mahjong_4p.state import State
 
-
 STEP_KEY = jax.random.PRNGKey(0)  # wall key for round transitions
 
 

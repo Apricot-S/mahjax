@@ -28,7 +28,6 @@ from .constants import (
     NUM_PLAYERS,
 )
 
-
 FALSE = jnp.bool_(False)
 TRUE = jnp.bool_(True)
 
