@@ -19,7 +19,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from mahjax._src.types import Array
+from mahjax._src.types import Array, ArrayLike
 
 from .action import Action
 from .tile import Tile
@@ -251,12 +251,12 @@ class Hand:
         return jnp.sum((hand_34 * Hand.KYUUSHU_MASK) > 0) >= 9
 
     @staticmethod
-    def add(hand: Array, tile: Array, x: int = 1) -> Array:
+    def add(hand: Array, tile: ArrayLike, x: int = 1) -> Array:
         target = tile if hand.shape[0] == Tile.NUM_TILE_TYPE_WITH_RED else Tile.to_tile_type(tile)
         return hand.at[target].set(hand[target] + x)
 
     @staticmethod
-    def sub(hand: Array, tile: Array, x: int = 1) -> Array:
+    def sub(hand: Array, tile: ArrayLike, x: int = 1) -> Array:
         return Hand.add(hand, tile, -x)
 
     @staticmethod

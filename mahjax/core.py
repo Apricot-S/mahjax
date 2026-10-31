@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, Dict, Literal, Optional, Tuple, Union, ge
 import jax.numpy as jnp
 
 from mahjax._src.struct import dataclass
-from mahjax._src.types import Array, PRNGKey
+from mahjax._src.types import Array, ArrayLike, PRNGKey
 
 if TYPE_CHECKING:
     from mahjax.mahjong_3p.env import Mahjong3p
@@ -114,14 +114,14 @@ class Env(abc.ABC):
     def step(
         self,
         state: State,
-        action: Array,
-        key: Optional[Array] = None,
+        action: ArrayLike,
+        key: Optional[PRNGKey] = None,
     ) -> State:
         """Step function.
 
         Args:
             state: State: Current state of the game
-            action: Array: Action to be performed
+            action: ArrayLike: Action to be performed
             key: PRNGKey: Pseudo-random generator key in JAX. Required — a step
                 that ends a round deals the next wall from it, and the state
                 carries no rng of its own.
@@ -132,7 +132,7 @@ class Env(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def observe(self, state: State) -> Array:
+    def observe(self, state: State) -> Dict[str, Array]:
         """
         Observation function.
 
@@ -140,7 +140,7 @@ class Env(abc.ABC):
             state: State: Current state of the game
 
         Returns:
-            Array: Observation of the state
+            Dict[str, Array]: Observation of the state
         """
         ...
 

@@ -19,7 +19,7 @@ from typing import Any, ClassVar, Dict, List, Literal, Optional, Tuple
 import jax
 import jax.numpy as jnp
 
-from mahjax._src.types import Array, PRNGKey
+from mahjax._src.types import Array, ArrayLike, PRNGKey
 from mahjax.common import logic as common_logic
 from mahjax.common.config import GameConfig
 from mahjax.common.constants import TRUE
@@ -91,8 +91,8 @@ class MahjongEnv(Env):
     def step(
         self,
         state: GameState,
-        action: Array,
-        key: Optional[Array] = None,
+        action: ArrayLike,
+        key: Optional[PRNGKey] = None,
     ) -> GameState:
         """Step function.
 
@@ -152,11 +152,11 @@ class MahjongEnv(Env):
         )
         return state
 
-    def observe(self, state: GameState) -> Array:
+    def observe(self, state: GameState) -> Dict[str, Array]:
         assert isinstance(state, self.State)
         return self.observe_func(state)
 
-    def observe_privileged(self, state: GameState) -> Dict:
+    def observe_privileged(self, state: GameState) -> Dict[str, Array]:
         """``observe()`` plus every other player's concealed hand.
 
         HIDDEN INFORMATION -- for centralised critics, opponent modelling and

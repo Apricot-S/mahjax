@@ -20,7 +20,7 @@ from typing import Any, Literal, Optional, Tuple
 import jax
 import jax.numpy as jnp
 
-from mahjax._src.types import Array, PRNGKey
+from mahjax._src.types import Array, ArrayLike, PRNGKey
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
 from mahjax.common.constants import FALSE, INITIAL_HAND_TILES, MAX_KANS_PER_ROUND, SENTINEL_TILE_ID, TILE_RANGE, TRUE
@@ -139,12 +139,12 @@ def _replacements_drawn(state: State) -> Array:
     return n
 
 
-def _dora_indicator_ix(state: State, k: Array) -> Array:
+def _dora_indicator_ix(state: State, k: ArrayLike) -> ArrayLike:
     """Wall index of the ``k``-th dora indicator: 0 is the first, each kan adds one."""
     return state.constants.FIRST_DORA_INDICATOR_IX - 2 * k
 
 
-def _ura_dora_indicator_ix(state: State, k: Array) -> Array:
+def _ura_dora_indicator_ix(state: State, k: ArrayLike) -> ArrayLike:
     """Wall index of the ``k``-th ura dora indicator, the tile below the dora indicator."""
     return _dora_indicator_ix(state, k) - 1
 
@@ -239,7 +239,7 @@ def _yaku_lookahead(
     next_tile: Array,
     ron_dora_indicators: Optional[Array] = None,
     ron_ura_dora_indicators: Optional[Array] = None,
-    use_red_fives: Array = jnp.bool_(True),
+    use_red_fives: ArrayLike = jnp.bool_(True),
 ) -> Tuple[Array, Array, Array]:
     """
     Judge every player's RON on ``tile`` and TSUMO on ``next_tile``, for the cached
@@ -930,7 +930,7 @@ def _next_seat(player: Array, num_players: int) -> Array:
     return (player + 1) % num_players
 
 
-def _next_ron_player(legal_action_mask_4p: Array, discarded_player: Array) -> Array:
+def _next_ron_player(legal_action_mask_4p: Array, discarded_player: Array) -> Tuple[Array, Array]:
     """
     - Check if the player can play RON with the target tile
     - If multiple players can play RON, prioritize the player who is closest to the discarded player
@@ -951,7 +951,7 @@ def _next_ron_player(legal_action_mask_4p: Array, discarded_player: Array) -> Ar
     return idx, can_any_ron
 
 
-def _next_meld_player(legal_action_mask_4p: Array, discarded_player: Array) -> Array:
+def _next_meld_player(legal_action_mask_4p: Array, discarded_player: Array) -> Tuple[Array, Array]:
     """
     Set the next player from the legal action for melding.
     - Set the next player from the legal action (RON > OPEN_KAN, PON > CHI)

@@ -16,7 +16,7 @@
 import jax
 import jax.numpy as jnp
 
-from mahjax._src.types import Array
+from mahjax._src.types import Array, ArrayLike
 
 from .action import Action
 from .tile import Tile
@@ -26,7 +26,7 @@ EMPTY_MELD = jnp.uint16(0xFFFF)
 
 class Meld:
     @staticmethod
-    def init(action: Array, target: Array, src: Array) -> Array:
+    def init(action: ArrayLike, target: Array, src: ArrayLike) -> Array:
         target_is_red = Tile.is_tile_red(target)
         target_tile_type = Tile.to_tile_type(target)
         return (
