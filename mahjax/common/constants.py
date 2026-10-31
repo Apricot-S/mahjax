@@ -14,7 +14,7 @@ MAX_MELDS_PER_PLAYER: Final[int] = 4
 MAX_KANS_PER_ROUND: Final[int] = 4
 
 RED_FIVE_TILE_TYPES: Final[tuple[int, int, int]] = (4, 13, 22)
-RED_FIVE_TILE_IDS: Final[tuple[int, int, int]] = tuple(tile_type * 4 for tile_type in RED_FIVE_TILE_TYPES)
+RED_FIVE_TILE_IDS: Final[tuple[int, ...]] = tuple(tile_type * 4 for tile_type in RED_FIVE_TILE_TYPES)
 
 SENTINEL_TILE_ID: Final[int] = -1
 

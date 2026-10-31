@@ -80,17 +80,17 @@ class Tile:
         return (tile_type == RED_FIVE_TILE_TYPES[0]) | (tile_type == RED_FIVE_TILE_TYPES[1]) | (tile_type == RED_FIVE_TILE_TYPES[2])
 
     @staticmethod
-    def is_tile_type_seven(tile_type: Array) -> bool:
+    def is_tile_type_seven(tile_type: Array) -> Array:
         tile_type = Tile.to_tile_type(tile_type)
         return (tile_type % 9 == 6) & (tile_type < 27)
 
     @staticmethod
-    def is_tile_type_three(tile_type: Array) -> bool:
+    def is_tile_type_three(tile_type: Array) -> Array:
         tile_type = Tile.to_tile_type(tile_type)
         return (tile_type % 9 == 2) & (tile_type < 27)
 
     @staticmethod
-    def is_tile_four_wind(tile: Array) -> bool:
+    def is_tile_four_wind(tile: Array) -> Array:
         tile_type = Tile.to_tile_type(tile)
         return (27 <= tile_type) & (tile_type < 31)
 

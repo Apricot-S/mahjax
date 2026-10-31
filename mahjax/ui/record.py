@@ -67,7 +67,7 @@ def save_events(
     if record_id is None:
         created = meta.get("created_at")
         try:
-            stamp = _dt.datetime.fromisoformat(created).strftime("%Y%m%d-%H%M%S")
+            stamp = _dt.datetime.fromisoformat(str(created)).strftime("%Y%m%d-%H%M%S")
         except (TypeError, ValueError):
             stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         record_id = f"{stamp}-{uuid.uuid4().hex[:8]}"
@@ -526,7 +526,8 @@ class StateReplay(Replay):
 
     def _collect(self, states: List[Any]) -> None:
         rules = self.rules
-        round_index, round_start, wins = 0, 0, []
+        round_index, round_start = 0, 0
+        wins: List[Dict[str, Any]] = []
         score_start = rules.scores(states[0])
         self._push(states[0], None, round_index)
         for i in range(1, len(states)):

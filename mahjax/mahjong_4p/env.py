@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from types import ModuleType
+from typing import Any, ClassVar
+
 from mahjax.common.env import MahjongEnv
 
 from . import config, observation
@@ -21,8 +24,8 @@ from .state import State as _State
 class Mahjong4p(MahjongEnv):
     """4-player riichi mahjong: the shared env, played at the 4-player table."""
 
-    State = _State
-    observation = observation
+    State: ClassVar[type[Any]] = _State
+    observation: ClassVar[ModuleType] = observation
     RED = config.RED
     NO_RED = config.NO_RED
     ID_SUFFIX = "4p"

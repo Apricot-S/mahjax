@@ -71,39 +71,39 @@ class RoundState:
     # hanchan-global (``_start_next_round_or_end_game`` carries it across rounds),
     # so it walks past the end of a per-round buffer and JAX silently drops the
     # out-of-bounds scatter, leaving the history all -1.
-    round_step: jnp.int32 = jnp.int32(0)
+    round_step: jnp.ndarray = jnp.int32(0)
     # Set when a round produces more actions than ``action_history`` can hold,
     # so that truncation is observable instead of silent.
-    history_overflow: jnp.bool_ = FALSE
-    round: jnp.int8 = jnp.int8(0)
-    round_limit: jnp.int8 = jnp.int8(7)
-    terminated_round: jnp.bool_ = FALSE
+    history_overflow: jnp.ndarray = FALSE
+    round: jnp.ndarray = jnp.int8(0)
+    round_limit: jnp.ndarray = jnp.int8(7)
+    terminated_round: jnp.ndarray = FALSE
     # int32: with no renchan limit, int8 would wrap from 127 honba.
-    honba: jnp.int32 = jnp.int32(0)
-    kyotaku: jnp.int8 = jnp.int8(0)
+    honba: jnp.ndarray = jnp.int32(0)
+    kyotaku: jnp.ndarray = jnp.int8(0)
     init_wind: jnp.ndarray = jnp.array([0, 1, 2], dtype=jnp.int8)
     seat_wind: jnp.ndarray = jnp.array([0, 1, 2], dtype=jnp.int8)
-    dealer: jnp.int8 = jnp.int8(0)
+    dealer: jnp.ndarray = jnp.int8(0)
     order_points: jnp.ndarray = jnp.array([0, 0, 0], dtype=jnp.int32)
     score: jnp.ndarray = jnp.full((NUM_PLAYERS,), 350, dtype=jnp.int32)
     deck: jnp.ndarray = jnp.zeros((NUM_PHYSICAL_TILES,), dtype=jnp.int8)
-    next_deck_ix: jnp.int32 = jnp.int32(FIRST_DRAW_IDX)
-    last_deck_ix: jnp.int8 = jnp.int8(DEAD_WALL_TILES)
-    draw_next: jnp.bool_ = FALSE
-    last_draw: jnp.int8 = jnp.int8(-1)
-    last_player: jnp.int8 = jnp.int8(-1)
+    next_deck_ix: jnp.ndarray = jnp.int32(FIRST_DRAW_IDX)
+    last_deck_ix: jnp.ndarray = jnp.int8(DEAD_WALL_TILES)
+    draw_next: jnp.ndarray = FALSE
+    last_draw: jnp.ndarray = jnp.int8(-1)
+    last_player: jnp.ndarray = jnp.int8(-1)
     dora_indicators: jnp.ndarray = jnp.full((MAX_DORA_INDICATORS,), -1, dtype=jnp.int8)
     ura_dora_indicators: jnp.ndarray = jnp.full((MAX_DORA_INDICATORS,), -1, dtype=jnp.int8)
-    is_abortive_draw_normal: jnp.bool_ = FALSE
-    dummy_count: jnp.int8 = jnp.int8(0)
-    is_haitei: jnp.bool_ = FALSE
-    target: jnp.int8 = jnp.int8(-1)
-    n_kan_doras: jnp.int8 = jnp.int8(0)
-    kan_declared: jnp.bool_ = FALSE
-    can_after_kan: jnp.bool_ = FALSE
-    can_robbing_kan: jnp.bool_ = FALSE
+    is_abortive_draw_normal: jnp.ndarray = FALSE
+    dummy_count: jnp.ndarray = jnp.int8(0)
+    is_haitei: jnp.ndarray = FALSE
+    target: jnp.ndarray = jnp.int8(-1)
+    n_kan_doras: jnp.ndarray = jnp.int8(0)
+    kan_declared: jnp.ndarray = FALSE
+    can_after_kan: jnp.ndarray = FALSE
+    can_robbing_kan: jnp.ndarray = FALSE
     # A kita waiting for the others to pass on its north before its replacement draw.
-    kita_declared: jnp.bool_ = FALSE
+    kita_declared: jnp.ndarray = FALSE
 
 
 @dataclass
@@ -112,18 +112,18 @@ class EnvState:
     # it from here, so the same rules play any table; it is not part of the pytree.
     constants: ClassVar[ModuleType] = _constants
 
-    current_player: jnp.int8 = jnp.int8(0)
+    current_player: jnp.ndarray = jnp.int8(0)
     legal_action_mask: jnp.ndarray = jnp.zeros((LEGAL_ACTION_SIZE,), dtype=jnp.bool_)
     players: PlayerStateArrays = PlayerStateArrays()
     round_state: RoundState = RoundState()
-    step_count: jnp.int32 = jnp.int32(0)
+    step_count: jnp.ndarray = jnp.int32(0)
     rewards: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.float32)
     # The rons declared on the current discard and what they pay, held back until
     # everyone who can ron it has answered; see ``_ron``. Not public until then.
     pending_rewards: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.float32)
     pending_winners: jnp.ndarray = jnp.zeros((NUM_PLAYERS,), dtype=jnp.bool_)
-    terminated: jnp.bool_ = FALSE
-    truncated: jnp.bool_ = FALSE
+    terminated: jnp.ndarray = FALSE
+    truncated: jnp.ndarray = FALSE
 
     @property
     def env_id(self) -> str:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import importlib.resources as resources
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -43,7 +43,7 @@ def _one_hot_at(x: Array, idx: Array) -> Array:
     return x @ jax.nn.one_hot(idx, x.shape[0])
 
 
-def _dora_array_from_state(state: object) -> jnp.ndarray:
+def _dora_array_from_state(state: Any) -> jnp.ndarray:
     dora_of = state.constants.DORA_ARRAY  # the table's indicator-to-dora mapping
 
     def update_dora_counts(dora_counts: Array, dora_indicator: Array) -> Array:
@@ -601,7 +601,7 @@ class Yaku:
         hand: Array,
         is_ron: Array,
         player: Array,
-        rs: object,
+        rs: Any,
         use_red_fives: Array = jnp.bool_(True),
     ) -> Tuple[Array, Array, Array]:
         p = jnp.int32(player)
@@ -674,7 +674,7 @@ class Yaku:
         hand: Array,
         is_ron: Array,
         player: Array,
-        rs: object,
+        rs: Any,
     ) -> Tuple[Array, Array, Array]:
         p = jnp.int32(player)
         melds = rs.players.melds[p]

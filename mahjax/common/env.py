@@ -24,7 +24,7 @@ from mahjax.common import logic as common_logic
 from mahjax.common.config import GameConfig
 from mahjax.common.constants import TRUE
 from mahjax.common.logic import _init, _replace_state, _start_next_round_or_end_game
-from mahjax.core import Env
+from mahjax.core import Env, EnvId
 
 # Any game's state; its ``constants`` set the table.
 GameState = Any
@@ -34,7 +34,7 @@ class MahjongEnv(Env):
     """The env for any table. A subclass names the table's state class, whose
     ``constants`` set the table, its observation module and its rule presets."""
 
-    State: ClassVar[type]
+    State: ClassVar[type[Any]]
     observation: ClassVar[ModuleType]
     logic: ClassVar[ModuleType] = common_logic  # its ``_step`` plays an action
     RED: ClassVar[GameConfig]
@@ -167,7 +167,7 @@ class MahjongEnv(Env):
         return self.observe_privileged_func(state)
 
     @property
-    def id(self) -> str:
+    def id(self) -> EnvId:
         return ("no_red_" if self.game_config == self.NO_RED else "red_") + self.ID_SUFFIX  # type:ignore
 
     @property

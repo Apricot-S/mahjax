@@ -29,7 +29,7 @@ the ``no_red_*`` presets only 0-33 ever appear.
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import numpy as np
 
@@ -85,13 +85,13 @@ class Rules:
     def __init__(self, env_id: str) -> None:
         if env_id not in ENV_IDS:
             raise ValueError(f"Unknown env_id: {env_id}")
+        from mahjax.common.action import Action as FourPlayerAction
         from mahjax.common.meld import Meld
         from mahjax.common.tile import BIT_GRAY, BIT_RIICHI, BIT_TSUMOGIRI, TILE_MASK
+        from mahjax.mahjong_3p.action import Action as ThreePlayerAction
 
-        if env_id.endswith("_3p"):
-            from mahjax.mahjong_3p.action import Action
-        else:
-            from mahjax.common.action import Action
+        # The 3-player ids are the 4-player ones plus KITA.
+        Action: Any = ThreePlayerAction if env_id.endswith("_3p") else FourPlayerAction
 
         self.env_id = env_id
         self.has_red = env_id.startswith("red_")
@@ -138,8 +138,9 @@ class Rules:
     def make_env(self, round_mode: str) -> Any:
         """The env this UI always wants: stop at round end, share via DUMMY."""
         import mahjax
+        from mahjax.core import EnvId
 
-        return mahjax.make(self.env_id, round_mode=round_mode, round_end="confirm")
+        return mahjax.make(cast(EnvId, self.env_id), round_mode=round_mode, round_end="confirm")
 
     # --------------------------------------------------------------- actions
 

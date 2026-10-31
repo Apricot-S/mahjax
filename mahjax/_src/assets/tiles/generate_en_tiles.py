@@ -113,7 +113,10 @@ def label_for(name: str) -> tuple[str, str]:
         return LABELS[stem], LABEL_COLORS[stem]
     if stem == "white":
         return "", "#111111"
-    number, suit = re.fullmatch(r"([1-9])(m|p|s)r?", stem).groups()
+    numbered = re.fullmatch(r"([1-9])(m|p|s)r?", stem)
+    if numbered is None:
+        raise ValueError(f"{name}: not a tile this script knows how to label")
+    number, suit = numbered.groups()
     return number, SUIT_COLORS[suit]
 
 
@@ -127,7 +130,10 @@ def build_motif_markup(name: str) -> str:
     for group_open, group_body in groups:
         kept_tags = []
         for tag in re.findall(r"<path\b[^>]*>", group_body):
-            path_d = re.search(r'\sd="([^"]+)"', tag).group(1)
+            d = re.search(r'\sd="([^"]+)"', tag)
+            if d is None:
+                raise ValueError(f"{name}: a <path> without a d attribute")
+            path_d = d.group(1)
             # The path keeps its own colour and mask.
             attrs = re.sub(r'\s(?:d|vector-effect)="[^"]*"', "", tag[len("<path"):]).rstrip("/>").rstrip()
             kept_tags.append(f'<path d="{path_d}"{attrs} vector-effect="non-scaling-stroke"/>')

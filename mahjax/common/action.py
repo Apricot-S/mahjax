@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from mahjax._src.struct import dataclass
+from mahjax._src.types import Array
 
 
 @dataclass
@@ -38,5 +39,5 @@ class Action:
     NUM_ACTION: int = 87
 
     @staticmethod
-    def is_selfkan(action: int) -> bool:
+    def is_selfkan(action: Array) -> Array:
         return (37 <= action) & (action < 71)
