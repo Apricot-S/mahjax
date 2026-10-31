@@ -77,67 +77,6 @@ class State(abc.ABC):
         """Environment id (e.g. "go_19x19")"""
         ...
 
-    def _repr_html_(self) -> str:
-        return self.to_svg()
-
-    def to_svg(
-        self,
-        *,
-        color_theme: Optional[Literal["light", "dark"]] = None,
-        scale: Optional[float] = None,
-        tile_style: Literal["standard", "bilingual"] = "standard",
-    ) -> str:
-        """Return SVG string. Useful for visualization in notebook.
-
-        Args:
-            color_theme (Optional[Literal["light", "dark"]]): xxx see also global config.
-            scale (Optional[float]): change image size. Default(None) is 1.0
-
-        Returns:
-            str: SVG string
-        """
-        if self.env_id in ("red_4p", "no_red_4p"):
-            from mahjax.mahjong_4p.visualization import render_round_svg
-
-            del color_theme, scale
-            return render_round_svg(
-                self,
-                show_all_hands=True,
-                tile_style=tile_style,
-            )
-
-        from mahjax._src.visualizer import Visualizer
-        v = Visualizer(color_theme=color_theme, scale=scale)
-        return v.get_dwg(states=self).tostring()
-
-    def save_svg(
-        self,
-        filename: str,
-        *,
-        color_theme: Optional[Literal["light", "dark"]] = None,
-        scale: Optional[float] = None,
-        tile_style: Literal["standard", "bilingual"] = "standard",
-    ) -> None:
-        """Save the entire state (not observation) to a file.
-        The filename must end with `.svg`
-
-        Args:
-            color_theme (Optional[Literal["light", "dark"]]): xxx see also global config.
-            scale (Optional[float]): change image size. Default(None) is 1.0
-
-        Returns:
-            None
-        """
-        from mahjax._src.visualizer import save_svg
-
-        save_svg(
-            self,
-            filename,
-            color_theme=color_theme,
-            scale=scale,
-            tile_style=tile_style,
-        )
-
 
 class Env(abc.ABC):
     """Environment class API.

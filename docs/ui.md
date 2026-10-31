@@ -87,6 +87,7 @@ save_html(states, "game.html")  # one file that any browser opens
   - Where two states are one recorded action apart, the frame names the action.
   - A round whose end is among the states gets its result.
   - States from a `round_end="auto"` env skip the end of each round, so their rounds just follow one another.
+- **Replaces the SVG helpers:** `save_svg`, `save_svg_animation` and `State.to_svg` are gone. `save_html(states, path)` takes what `save_svg_animation` took.
 
 ## Your own agents
 

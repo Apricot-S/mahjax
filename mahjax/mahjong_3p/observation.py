@@ -151,7 +151,7 @@ def _observe_dict(state: State) -> Dict:
     - wall_remaining: () int32, tiles still drawable from the live wall, [0, 70].
       The round's clock: it drives haitei, the exhaustive draw, and the env's own
       riichi precondition. Counted inclusively between ``next_deck_ix`` and the
-      haitei line, matching ``visualization.remaining_tiles``.
+      haitei line, the count the UI shows (``mahjax.ui.rules.Rules.remaining_draws``).
     - tiles_seen: (34,) int8, how many copies of each tile TYPE are already visible
       from this seat, [0, 4]. Own concealed hand + every river + every meld +
       revealed dora indicators. Red fives fold into their type. A called tile is

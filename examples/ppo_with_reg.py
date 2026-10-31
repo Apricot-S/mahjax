@@ -76,7 +76,7 @@ class PPOWithRegArgs(BaseModel):
     eval_vs_magnet: bool = False
     viz_max_steps: int = 1000
     viz_out_dir: str = "fig"
-    viz_filename: str = "ppo_with_reg_agent_game.svg"
+    viz_filename: str = "ppo_with_reg_agent_game.html"
     class args: extra = "forbid"
 
 args = PPOWithRegArgs(**OmegaConf.to_object(OmegaConf.from_cli()))

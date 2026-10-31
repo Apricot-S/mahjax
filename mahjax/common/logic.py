@@ -652,7 +652,7 @@ def _mask_after_draw(
     # 残りツモが ``MIN_LIVE_DRAWS_FOR_RIICHI`` 回**未満**のときは立直不可。この判定は宣言者の摸打**後**に
     # 山へ残る枚数で数える。normal draw ではこのマスクが next_deck_ix 減算前に
     # 作られる（摸った牌はもう手牌にある）ので残りは ``next - live_wall_end``
-    # ちょうど——``visualization.remaining_tiles`` の ``next - last + 1``（局間
+    # ちょうど——UI の ``Rules.remaining_draws`` と同じ ``next - last + 1``（局間
     # 用の式）をここに使うと摸った牌を二重に数えて残り 3 枚でも立直が通り、
     # mjai 互換エンジン（libriichi / riichienv）は全てそれをチョンボにする。
     if live_draws_left is None:
