@@ -39,7 +39,7 @@ import numpy as np
 
 from mahjax.common.logic import _is_uninterrupted_first_turn
 
-from .rules import NUM_PLAYERS, NUM_TILE_TYPES, Rules, tile_type
+from .rules import NORTH, NUM_TILE_TYPES, Rules, tile_type
 
 __all__ = [
     "SeatInfo",
@@ -167,7 +167,11 @@ class _YakuBackend:
 @functools.lru_cache(maxsize=None)
 def _yaku_backend(env_id: str) -> _YakuBackend:
     from mahjax.common.yaku import Yaku, _Internal
-    from mahjax.mahjong_4p.constants import DORA_ARRAY
+
+    if env_id.endswith("_3p"):
+        from mahjax.mahjong_3p.constants import DORA_ARRAY
+    else:
+        from mahjax.mahjong_4p.constants import DORA_ARRAY
 
     def one(hand, melds, n_meld, last_tile, riichi, is_ron, pw, sw, dora):
         return Yaku.judge_hand_related(hand, melds, n_meld, last_tile, riichi, is_ron, pw, sw, dora)
@@ -201,6 +205,7 @@ class _Judged:
     aka_han: int
     dora_han: int
     ura_han: int
+    kita_han: int
     dora: List[int]
     ura_dora: List[int]
     concealed: bool
@@ -213,7 +218,9 @@ def _judge_win(rules: Rules, state: Any, seat: int, is_ron: bool, cached_fan: in
 
     The judge is run against a growing dora array -- none, front, front+ura --
     so that its one opaque total falls apart into aka / dora / ura counts
-    without any of them being re-derived here.
+    without any of them being re-derived here. The norths set aside are added
+    the way the env adds them, outside the hand: one han each, and one more
+    each while north is a dora.
     """
     backend = _yaku_backend(rules.env_id)
     rs = state.round_state
@@ -243,9 +250,14 @@ def _judge_win(rules: Rules, state: Any, seat: int, is_ron: bool, cached_fan: in
 
     zero = np.zeros(NUM_TILE_TYPES, dtype=np.int32)
     batch = []
+    kita = rules.kita(state, seat)
+    has_riichi = bool(state.players.riichi[seat])
+    kita_hans = []
     for front, back in snapshots:
         counts, ura_counts = _dora_counts(backend, front), _dora_counts(backend, back)
         batch += [[zero, zero], [counts, zero], [counts, ura_counts]]
+        north = int(counts[NORTH]) + (int(ura_counts[NORTH]) if has_riichi else 0)
+        kita_hans.append(kita * (1 + north))
 
     mask, fan, fu = backend.judge(
         jnp.asarray(hand),
@@ -254,7 +266,7 @@ def _judge_win(rules: Rules, state: Any, seat: int, is_ron: bool, cached_fan: in
         jnp.int32(last_tile),
         jnp.bool_(state.players.riichi[seat]),
         jnp.bool_(is_ron),
-        jnp.int32(int(rs.round) // 4),
+        jnp.int32(int(rs.round) // rules.num_players),
         jnp.int32(int(rs.seat_wind[seat])),
         jnp.asarray(np.asarray(batch, dtype=np.int8)),
     )
@@ -263,7 +275,7 @@ def _judge_win(rules: Rules, state: Any, seat: int, is_ron: bool, cached_fan: in
 
     chosen = 0
     for k in range(len(snapshots)):
-        if int(fan[3 * k + 2]) == cached_fan:
+        if int(fan[3 * k + 2]) + kita_hans[k] == cached_fan:
             chosen = k
             break
     base = 3 * chosen
@@ -274,19 +286,19 @@ def _judge_win(rules: Rules, state: Any, seat: int, is_ron: bool, cached_fan: in
     row = backend.fan[1 if concealed else 0]
     bits = np.flatnonzero(mask[base])
     hand_han = int(row[bits].sum())
-    has_riichi = bool(state.players.riichi[seat])
     return _Judged(
         mask=mask[base],
         fu=int(fu[base]),
-        fan=int(fan[base + 2]),
+        fan=int(fan[base + 2]) + kita_hans[chosen],
         hand_han=hand_han,
         aka_han=int(fan[base]) - hand_han,
         dora_han=int(fan[base + 1]) - int(fan[base]),
         ura_han=int(fan[base + 2]) - int(fan[base + 1]),
+        kita_han=kita_hans[chosen],
         dora=[int(t) for t in front if int(t) >= 0],
         ura_dora=[int(t) for t in back if int(t) >= 0] if has_riichi else [],
         concealed=concealed,
-        candidates=tuple(int(fan[3 * k + 2]) for k in range(len(snapshots))),
+        candidates=tuple(int(fan[3 * k + 2]) + kita_hans[k] for k in range(len(snapshots))),
     )
 
 
@@ -300,9 +312,10 @@ _ACTION_LABELS = {
     "pon": ("ポン", "Pon"),
     "chi": ("チー", "Chi"),
     "kyuushu": ("九種九牌", "Nine Terminals"),
+    "kita": ("北抜き", "Kita"),
     "pass": ("パス", "Pass"),
 }
-_OPTION_ORDER = ("ron", "tsumo", "riichi", "kan", "pon", "chi", "kyuushu", "pass")
+_OPTION_ORDER = ("ron", "tsumo", "riichi", "kita", "kan", "pon", "chi", "kyuushu", "pass")
 _TILE_NAMES_EN: Tuple[str, ...] = _TILE_NAMES[:27] + ("East", "South", "West", "North", "White", "Green", "Red")
 
 
@@ -323,6 +336,7 @@ def _option(rules: Rules, state: Any, seat: int, action: int) -> Dict[str, Any]:
         ("ron", rules.RON),
         ("pass", rules.PASS),
         ("kyuushu", rules.KYUUSHU),
+        ("kita", rules.KITA),
     ):
         if action == choice:
             return _choice(action, kind, None, *_ACTION_LABELS[kind])
@@ -413,6 +427,8 @@ def describe_action(rules: Rules, pre_state: Any, action: int) -> Dict[str, Any]
         return {"seat": seat, "kind": "dummy", "tiles": None}
     if action == rules.KYUUSHU:
         return {"seat": seat, "kind": "kyuushu", "tiles": None}
+    if action == rules.KITA:
+        return {"seat": seat, "kind": "kita", "tiles": None}
     if rules.is_pon(action):
         return {"seat": seat, "kind": "pon", "tiles": rules.pon_tiles(action, int(rs.target))}
     if rules.is_chi(action):
@@ -445,6 +461,7 @@ def _seat_view(
         "handCount": rules.hand_count(state, seat),
         "drawn": rules.drawn_tile(state, seat) if reveal else None,
         "melds": rules.melds(state, seat),
+        "kita": rules.kita(state, seat),
         "river": [
             {
                 "tile": d["tile"],
@@ -495,7 +512,7 @@ def build_view(
         "current": None if over else int(state.current_player),
         "seats": [
             _seat_view(rules, state, i, seats[i], bool(reveal[i]), scores[i])
-            for i in range(NUM_PLAYERS)
+            for i in range(rules.num_players)
         ],
         "lastDiscard": rules.last_discard(state),
         "prompt": prompt,
@@ -609,6 +626,7 @@ def build_win(
         "doraHan": 0 if is_yakuman else judged.dora_han,
         "akaHan": 0 if is_yakuman else judged.aka_han,
         "uraHan": 0 if is_yakuman else judged.ura_han,
+        "kitaHan": 0 if is_yakuman else judged.kita_han,
         "han": han,
         "fu": fu,
         "yakuman": han if is_yakuman else 0,
@@ -630,8 +648,8 @@ def final_standings(rules: Rules, state: Any) -> List[Dict[str, int]]:
     scores = np.asarray(rs.score, dtype=np.int64)
     order_points = np.asarray(rs.order_points, dtype=np.int64)
     order = np.argsort(-scores, kind="stable")  # ties go to the earlier seat
-    rank_of = np.zeros(NUM_PLAYERS, dtype=np.int64)
-    uma_of = np.zeros(NUM_PLAYERS, dtype=np.int64)
+    rank_of = np.zeros(rules.num_players, dtype=np.int64)
+    uma_of = np.zeros(rules.num_players, dtype=np.int64)
     for rank, seat in enumerate(order):
         rank_of[seat] = rank + 1
         uma_of[seat] = order_points[rank]
@@ -644,7 +662,7 @@ def final_standings(rules: Rules, state: Any) -> List[Dict[str, int]]:
             "score": int(final[seat]) * 100,
             "uma": int(uma_of[seat]) * 100,
         }
-        for seat in range(NUM_PLAYERS)
+        for seat in range(rules.num_players)
     ]
 
 
@@ -659,7 +677,7 @@ def abortive_reason(rules: Rules, state: Any) -> str:
     if rules.is_triple_ron(state):
         return "triple_ron"
     players = state.players
-    if int(sum(int(x) for x in players.riichi)) == NUM_PLAYERS:
+    if int(sum(int(x) for x in players.riichi)) == rules.num_players:
         return "four_riichi"
     if int(sum(int(x) for x in players.n_kan)) >= 4:
         return "four_kans"
@@ -712,7 +730,7 @@ def build_round_result(
         "nagashiMangan": nagashi if nagashi is not None and any(nagashi) else None,
         # Not the sum of ``rewards``: the score difference also carries the
         # riichi sticks paid mid-round and a double ron's second payment.
-        "deltas": [scores[i] - int(score_start[i]) for i in range(NUM_PLAYERS)],
+        "deltas": [scores[i] - int(score_start[i]) for i in range(rules.num_players)],
         "scores": scores,
         "gameOver": bool(game_over),
         "final": list(final) if final is not None else None,

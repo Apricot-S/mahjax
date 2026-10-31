@@ -39,7 +39,7 @@ def show(states: Any, *, height: int = 640) -> None:
     """Show a state, or play a list of states back, on the replay screen.
 
     ``states`` is one unbatched state, a list of them, or a state with a leading
-    time axis, from ``red_4p`` or ``no_red_4p``. In a notebook the screen is the
+    time axis, from any of the envs. In a notebook the screen is the
     cell's output, ``height`` pixels tall; anywhere else it is saved to a
     temporary HTML file, and the file's path is printed.
     """

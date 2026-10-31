@@ -34,7 +34,6 @@ from .agents import Agent
 from .rules import Rules, rules_for, shared_env, shared_step_fn
 from .view import SeatInfo
 
-NUM_PLAYERS = 4
 MAX_DUMMY_STEPS = 4
 #: A round that needs more steps than this is a bug, not a long hand.
 MAX_STEPS_PER_ADVANCE = 4000
@@ -131,12 +130,12 @@ class Match:
     # ------------------------------------------------------------------ setup
 
     def _build_seats(self) -> List[SeatInfo]:
-        """Number the agent seats. Three opponents all called "Rule-based" are
+        """Number the agent seats. Opponents all called "Rule-based" are
         impossible to tell apart, and the number leads because a long agent name
         gets clipped on the seat plate."""
         seats: List[SeatInfo] = []
         nth = 0
-        for i in range(NUM_PLAYERS):
+        for i in range(self.rules.num_players):
             if i == self.config.human_seat:
                 seats.append(SeatInfo(name=self.config.human_name, kind="human"))
             else:
@@ -146,7 +145,7 @@ class Match:
 
     def _start_game_event(self) -> Dict[str, Any]:
         players = []
-        for i in range(NUM_PLAYERS):
+        for i in range(self.rules.num_players):
             if i == self.config.human_seat:
                 players.append({"kind": "human"})
             else:
@@ -191,8 +190,8 @@ class Match:
         nobody after an abortive one. Your own hand is always your own.
         """
         if not self.config.hide_hands:
-            return [True] * NUM_PLAYERS
-        shown = [i == self.config.human_seat for i in range(NUM_PLAYERS)]
+            return [True] * self.rules.num_players
+        shown = [i == self.config.human_seat for i in range(self.rules.num_players)]
         if self.result is None:
             return shown
         if self.result["type"] in ("ron", "tsumo"):

@@ -6,7 +6,7 @@ MahJax ships a browser UI with a FastAPI backend and a plain JS frontend (no bui
 - save games and replay them;
 - play back states from Python with `mahjax.ui.show`, in a notebook or as one HTML file, with no server.
 
-It covers the 4-player game (`red_4p` and `no_red_4p`).
+It covers both tables: four players (`red_4p`, `no_red_4p`) and three (`red_3p`, `no_red_3p`). At three players the seat across stays empty, and the norths each player sets aside lie beyond their melds.
 
 ## Quickstart
 
@@ -21,11 +21,11 @@ Open http://localhost:8000 and start a game from the menu (☰).
 
 The menu's **新規対局** section sets up a game:
 
-- **Rules:** 赤あり (`red_4p`) or 赤なし (`no_red_4p`).
+- **Rules:** 赤あり (`red_4p`), 赤なし (`no_red_4p`), 三人麻雀 赤あり (`red_3p`) or 三人麻雀 赤なし (`no_red_3p`).
 - **Length:** half (半荘), east (東風), or a single round (一局).
 - **Opponent:** any registered agent for those rules.
 - **Seat:**
-  - a fixed or random seat for you;
+  - a fixed or random seat for you (three players have no north seat);
   - none, which plays the agents against each other and saves the game.
 - **Seed:** leave it empty for a random wall.
 - **Name**, and whether to **save the record**.
@@ -111,5 +111,4 @@ uvicorn my_ui_app:app --host 127.0.0.1 --port 8000
 
 ## Notes
 
-- The UI is 4-player only for now.
 - There is no authentication. Keep the server on localhost, or behind a VPN or a reverse proxy with authentication.

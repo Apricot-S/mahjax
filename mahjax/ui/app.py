@@ -63,7 +63,7 @@ class _RevalidatedFiles(StaticFiles):
 
 
 class CreateGame(BaseModel):
-    env_id: Literal["red_4p", "no_red_4p"] = "red_4p"
+    env_id: Literal["red_4p", "no_red_4p", "red_3p", "no_red_3p"] = "red_4p"
     round_mode: Literal["single", "east", "half"] = "half"
     agent_id: Optional[str] = None
     seed: Optional[int] = Field(None, ge=0, lt=2**31)
@@ -160,8 +160,11 @@ def _register_games(app: FastAPI, sessions: _Sessions) -> None:
     def create_game(req: CreateGame) -> Dict[str, Any]:
         seed = req.seed if req.seed is not None else new_seed()
         human_seat = req.human_seat
+        seats = rules_for(req.env_id).num_players
+        if human_seat is not None and human_seat >= seats:
+            raise HTTPException(status_code=400, detail=f"{req.env_id} has seats 0-{seats - 1}")
         if req.random_seat and human_seat is not None:
-            human_seat = random.Random(seed ^ 0x5A5A).randrange(4)
+            human_seat = random.Random(seed ^ 0x5A5A).randrange(seats)
         try:
             agent = sessions.registry.resolve(req.env_id, req.agent_id)
         except (KeyError, LookupError, ValueError) as err:

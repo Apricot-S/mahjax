@@ -18,10 +18,12 @@ The UI never re-derives mahjong rules -- it only mirrors ``legal_action_mask``.
 What it does need is a way to say "which action id is Riichi here" and "what
 tiles does this meld word stand for". ``red_4p`` and ``no_red_4p`` share one
 action space and state layout: ``no_red_4p`` is ``red_4p`` with the ``NO_RED``
-preset, which deals no red fives and never offers nine terminals.
+preset, which deals no red fives and never offers nine terminals. The 3-player
+``red_3p`` and ``no_red_3p`` are the same again with one more action, kita, and
+no chi ever offered.
 
 Tile ids are red-aware everywhere (0-33 types, 34/35/36 red fives); under
-``no_red_4p`` only 0-33 ever appear.
+the ``no_red_*`` presets only 0-33 ever appear.
 """
 
 from __future__ import annotations
@@ -31,9 +33,9 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-ENV_IDS = ("red_4p", "no_red_4p")
+ENV_IDS = ("red_4p", "no_red_4p", "red_3p", "no_red_3p")
 NUM_TILE_TYPES = 34
-NUM_PLAYERS = 4
+NORTH = 30  # the tile a kita sets aside
 RED_FIVE_TYPES = (4, 13, 22)  # 5m, 5p, 5s
 RED_TILE_BASE = NUM_TILE_TYPES  # 34/35/36 are the red 5m/5p/5s
 
@@ -83,12 +85,20 @@ class Rules:
     def __init__(self, env_id: str) -> None:
         if env_id not in ENV_IDS:
             raise ValueError(f"Unknown env_id: {env_id}")
-        from mahjax.common.action import Action
         from mahjax.common.meld import Meld
         from mahjax.common.tile import BIT_GRAY, BIT_RIICHI, BIT_TSUMOGIRI, TILE_MASK
 
+        if env_id.endswith("_3p"):
+            from mahjax.mahjong_3p.action import Action
+        else:
+            from mahjax.common.action import Action
+
         self.env_id = env_id
-        self.has_red = env_id == "red_4p"
+        self.has_red = env_id.startswith("red_")
+        #: Seats at the table. A wind lasts one round per seat.
+        self.num_players: int = 3 if env_id.endswith("_3p") else 4
+        #: The kita action, on the table that has one.
+        self.KITA: Optional[int] = int(Action.KITA) if self.num_players == 3 else None
         self._Action = Action
         self._Meld = Meld
         self._river_bits = tuple(int(bits) for bits in (TILE_MASK, BIT_RIICHI, BIT_GRAY, BIT_TSUMOGIRI))
@@ -226,7 +236,7 @@ class Rules:
                 target = red_of(target_type)
             else:
                 target = target_type
-            from_seat = None if src == 0 else (seat + src) % NUM_PLAYERS
+            from_seat = None if src == 0 else (seat + src) % self.num_players
 
             if bool(Meld.is_chi(word)):
                 kind = "chi"
@@ -289,6 +299,12 @@ class Rules:
         if count <= 0:
             return None
         return {"seat": seat, "index": count - 1}
+
+    def kita(self, state: Any, seat: int) -> int:
+        """The norths this seat has set aside; none on a table without kita."""
+        if self.KITA is None:
+            return 0
+        return int(state.players.kita[int(seat)])
 
     def riichi_state(self, state: Any, seat: int) -> str:
         seat = int(seat)
@@ -381,7 +397,7 @@ class Rules:
     def nagashi_mangan(self, state: Any) -> List[bool]:
         arr = getattr(state.players, "has_nagashi_mangan", None)
         if arr is None:
-            return [False] * NUM_PLAYERS
+            return [False] * self.num_players
         return [bool(x) for x in np.asarray(arr)]
 
 
@@ -423,7 +439,7 @@ __all__ = [
     "is_red",
     "red_of",
     "dora_of",
-    "NUM_PLAYERS",
+    "NORTH",
     "NUM_TILE_TYPES",
     "RED_TILE_BASE",
     "RED_FIVE_TYPES",
