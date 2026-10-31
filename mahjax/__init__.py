@@ -1,5 +1,4 @@
 from mahjax._src.types import Array, PRNGKey
-from mahjax._src.visualizer import save_svg, save_svg_animation, set_visualization_config
 from mahjax.common.action import Action
 from mahjax.common.config import GameConfig
 from mahjax.common.hand import Hand
@@ -35,8 +34,4 @@ __all__ = [
     "Meld",
     "Yaku",
     "rule_based_player",
-    # visualization
-    "set_visualization_config",
-    "save_svg",
-    "save_svg_animation",
 ]

@@ -88,7 +88,7 @@ def test_explicit_live_draws_left_overrides_the_derivation():
 # replacement tile comes off the dead wall, so ``next_deck_ix`` is untouched
 # while ``last_deck_ix`` advances by one (王牌繰り), and the live wall left
 # after the draw is the between-turns count read off the RESULT state -- the
-# same number ``visualization.remaining_tiles`` shows. Asserting the mask
+# same number the UI shows (``Rules.remaining_draws``). Asserting the mask
 # against the result state rather than against a formula keeps these honest if
 # the index bookkeeping ever moves.
 

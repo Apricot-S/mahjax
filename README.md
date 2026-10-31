@@ -28,7 +28,7 @@
 ## Overview
 
 - 🚀 **Vectorized Environment:** Extremely fast (approx. **1M+ steps/sec** on 8x A100 GPUs).
-- 🎨 **Rich Visualization:** SVG-based visualization with bilingual support **for those unfamiliar with Kanji**.
+- 🎨 **Rich Visualization:** a browser UI that also plays states back in notebooks, with bilingual tiles **for those unfamiliar with Kanji**.
 - 🎮 **Playable Interface:** A web-based UI allows you to play directly against the agents you train.
 - 📚 **RL Examples:** Simple examples for Behavior Cloning + PPO in the [`examples/`](https://github.com/nissymori/mahjax/tree/main/examples).
 
@@ -59,7 +59,7 @@ We basically follow the [Pgx](https://github.com/sotetsuk/pgx) API design.
 import jax
 import jax.numpy as jnp
 import mahjax
-from mahjax import save_svg
+from mahjax.ui import save_html
 
 batch_size = 10
 rng = jax.random.PRNGKey(0)
@@ -90,13 +90,9 @@ state = step_fn(state, action, rngs)
 # Get observation
 obs = obs_fn(state)
 
-# Visualize (save_svg renders a single, unbatched state)
-single_state = env.init(jax.random.PRNGKey(1))
-save_svg(
-    single_state,
-    "state.svg",
-    tile_style="bilingual",  # default is "standard"
-)
+# Visualize the first game of the batch as a page that any browser opens
+# (in a notebook, mahjax.ui.show draws it in the cell's output)
+save_html(jax.tree_util.tree_map(lambda x: x[0], state), "state.html")
 ```
 
 ## User interface

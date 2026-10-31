@@ -1,1 +1,1 @@
-"""Asset package for red mahjong visualizer."""
+"""Assets for the UI."""

@@ -16,7 +16,7 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 
 import mahjax
-from mahjax._src.visualizer import save_svg_animation
+from mahjax.ui import save_html
 from common import (
     FIG_DIR,
     default_bc_params_path,
@@ -37,7 +37,7 @@ class TrainConfig:
     
     # Visualization
     viz_out_dir: str = str(FIG_DIR)
-    viz_filename: str = "bc_agent_game.svg"
+    viz_filename: str = "bc_agent_game.html"
     viz_max_steps: int = 1000
     save_model_path: str | None = None
 
@@ -138,8 +138,8 @@ def visualize_game(cfg, train_state):
     print(f"Game End. Score: {state.round_state.score}", flush=True)
     os.makedirs(cfg.viz_out_dir, exist_ok=True)
     save_path = os.path.join(cfg.viz_out_dir, cfg.viz_filename)
-    save_svg_animation(history, save_path, frame_duration_seconds=0.5)
-    print(f"Saved animation to {save_path}", flush=True)
+    save_html(history, save_path)
+    print(f"Saved the game to {save_path}; open it in a browser", flush=True)
 
 # --- Main ---
 def main():
