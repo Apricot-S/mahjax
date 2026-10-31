@@ -12,6 +12,13 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 import wandb
+from flax.training.train_state import TrainState
+from omegaconf import OmegaConf
+from tqdm import tqdm
+
+import mahjax
+from mahjax.ui import save_html
+
 from common import (
     FIG_DIR,
     default_bc_params_path,
@@ -19,12 +26,6 @@ from common import (
     get_network_cls,
     get_rule_based_player,
 )
-from flax.training.train_state import TrainState
-from omegaconf import OmegaConf
-from tqdm import tqdm
-
-import mahjax
-from mahjax.ui import save_html
 
 
 @dataclass
@@ -36,7 +37,7 @@ class TrainConfig:
     num_epochs: int = 5
     seed: int = 42
     val_split: float = 0.1
-    
+
     # Visualization
     viz_out_dir: str = str(FIG_DIR)
     viz_filename: str = "bc_agent_game.html"
@@ -73,7 +74,7 @@ def create_train_state(rng, model, dummy_obs, lr):
 @jax.jit
 def train_step(state: AgentTrainState, batch):
     obs, act, mask = batch['obs'], batch['act'], batch['mask']
-    
+
     def loss_fn(params):
         # method=ACNet.get_action_logits を指定してActorのみ計算
         logits = state.apply_fn(params, obs, method=NETWORK_CLS.get_action_logits)
@@ -84,18 +85,18 @@ def train_step(state: AgentTrainState, batch):
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
     (loss, logits), grads = grad_fn(state.params)
     new_state = state.apply_gradients(grads=grads)
-    
+
     acc = jnp.mean(jnp.argmax(logits, axis=-1) == act)
     return new_state, loss, acc
 
 @jax.jit
 def eval_step(state: AgentTrainState, batch):
     obs, act, mask = batch['obs'], batch['act'], batch['mask']
-    
+
     logits = state.apply_fn(state.params, obs, method=NETWORK_CLS.get_action_logits)
     logits = jnp.where(mask, logits, -1e9)
     loss = optax.softmax_cross_entropy_with_integer_labels(logits, act).mean()
-    
+
     acc = jnp.mean(jnp.argmax(logits, axis=-1) == act)
     return loss, acc
 
@@ -116,12 +117,12 @@ def visualize_game(cfg, train_state):
     rule_based_player = get_rule_based_player(cfg.env_name)
     jitted_step = jax.jit(env.step)
     policy_fn = make_policy_fn(train_state, NETWORK_CLS)
-    
+
     rng = jax.random.PRNGKey(cfg.seed + 999)
     state = env.init(rng)
     history = [state]
     agent_seat = state.current_player
-    
+
     step = 0
     while not state.terminated and step < cfg.viz_max_steps:
         rng, k_act, k_rule, k_step = jax.random.split(rng, 4)
@@ -136,7 +137,7 @@ def visualize_game(cfg, train_state):
         state = jitted_step(state, action, k_step)
         history.append(state)
         step += 1
-            
+
     print(f"Game End. Score: {state.round_state.score}", flush=True)
     os.makedirs(cfg.viz_out_dir, exist_ok=True)
     save_path = os.path.join(cfg.viz_out_dir, cfg.viz_filename)
@@ -153,7 +154,8 @@ def main():
     wandb.init(project=cfg.wandb_project, config=cfg)
     # 1. Load Data
     if not os.path.exists(cfg.dataset_path):
-        print(f"Dataset not found: {cfg.dataset_path}"); return
+        print(f"Dataset not found: {cfg.dataset_path}")
+        return
 
     with open(cfg.dataset_path, "rb") as f:
         data = pickle.load(f)
@@ -162,40 +164,40 @@ def main():
         raise ValueError(
             f"Dataset env_name mismatch: cfg={cfg.env_name}, dataset={dataset_env_name}"
         )
-    
+
     obs_data = data['observation']
     act_data = data['action']
     mask_data = data['legal_action_mask']
     num_samples = act_data.shape[0]
-    
+
     # 2. Train/Val Split
     rng_np = np.random.RandomState(cfg.seed)
     indices = np.arange(num_samples)
     rng_np.shuffle(indices)
-    
+
     split_idx = int(num_samples * (1 - cfg.val_split))
     train_indices = indices[:split_idx]
     val_indices = indices[split_idx:]
     print(f"Loaded {num_samples} samples. Train: {len(train_indices)}, Val: {len(val_indices)}")
-    
+
     # 3. Init Model (ACNet)
     model = NETWORK_CLS()
     rng = jax.random.PRNGKey(cfg.seed)
     rng, init_rng = jax.random.split(rng)
-    
+
     # Dummy obs for init
     dummy_obs = jax.tree.map(lambda x: x[0:1], obs_data)
     train_state = create_train_state(init_rng, model, dummy_obs, cfg.lr)
-    
+
     # 4. Training Loop
     steps_per_epoch = len(train_indices) // cfg.batch_size
     val_steps = max(len(val_indices) // cfg.batch_size, 1)
-    
+
     for epoch in range(cfg.num_epochs):
         # Train
         np.random.shuffle(train_indices)
         train_stats = {"loss": 0.0, "acc": 0.0}
-        
+
         pbar = tqdm(range(steps_per_epoch), desc=f"Epoch {epoch+1} [Train]", mininterval=2.0)
         for i in pbar:
             batch_idx = train_indices[i*cfg.batch_size : (i+1)*cfg.batch_size]
@@ -208,7 +210,7 @@ def main():
             train_stats["loss"] += float(loss)
             train_stats["acc"] += float(acc)
             pbar.set_postfix({"loss": f"{loss:.4f}", "acc": f"{acc:.4f}"})
-            
+
         # Val
         val_stats = {"loss": 0.0, "acc": 0.0}
         for i in range(val_steps):
@@ -223,7 +225,7 @@ def main():
             loss, acc = eval_step(train_state, batch)
             val_stats["loss"] += float(loss)
             val_stats["acc"] += float(acc)
-        
+
         print(f"Ep {epoch+1:02d} | "
               f"Tr Loss: {train_stats['loss']/steps_per_epoch:.4f}, Acc: {train_stats['acc']/steps_per_epoch:.4f} | "
               f"Val Loss: {val_stats['loss']/val_steps:.4f}, Acc: {val_stats['acc']/val_steps:.4f}", flush=True)

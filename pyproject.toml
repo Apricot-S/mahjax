@@ -84,6 +84,10 @@ ignore = ["E501", "E741"]
 [tool.ruff.lint.mccabe]
 max-complexity = 18
 
+[tool.ruff.lint.isort]
+# The examples import their sibling scripts by name; these sort after mahjax.
+known-local-folder = ["bc", "common", "utils", "networks"]
+
 [tool.mypy]
 python_version = "3.9"
 ignore_missing_imports = true

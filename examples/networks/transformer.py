@@ -15,12 +15,12 @@ class TransformerBlock(nn.Module):
     def __call__(self, x, mask=None):
         # Attention Block (Pre-Norm)
         y = nn.LayerNorm()(x)
-        
+
         # Mask shape adjustment for MultiHeadDotProductAttention
         # (Batch, SeqLen) -> (Batch, 1, 1, SeqLen)
         if mask is not None and mask.ndim == 2:
             mask = mask[:, None, None, :]
-        
+
         y = nn.MultiHeadDotProductAttention(
             num_heads=self.num_heads,
             kernel_init=orthogonal_init(),
@@ -34,5 +34,5 @@ class TransformerBlock(nn.Module):
         y = nn.relu(y)
         y = nn.Dense(self.features, kernel_init=orthogonal_init())(y)
         x = x + y
-        
+
         return x

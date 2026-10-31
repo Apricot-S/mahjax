@@ -371,7 +371,7 @@ def _observe_dict(state: State) -> Dict:
         "is_hand_concealed": is_hand_concealed,
         "wall_remaining": wall_remaining,
         "tiles_seen": tiles_seen,
-        "target": target,  
+        "target": target,
         "last_player": last_player,
         "kita": state.players.kita[c_p_based_order],
     }
@@ -382,7 +382,7 @@ def _observe_2D(state: State) -> Array:
     TBD
     """
     pass
-  
+
 
 def _observe_privileged_dict(state: State) -> Dict:
     """``_observe_dict`` plus the OTHER players' concealed hands.

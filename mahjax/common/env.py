@@ -54,7 +54,7 @@ class MahjongEnv(Env):
         if round_mode not in ("single", "east", "half"):
             raise ValueError(f"round_mode must be one of ('single', 'east', 'half'), got: {round_mode}")
         if observe_type == "2D":
-            raise ValueError(f"observe type 2D is not developed yet")
+            raise ValueError("observe type 2D is not developed yet")
         if round_end not in ("auto", "confirm"):
             raise ValueError(
                 f"round_end must be one of ('auto', 'confirm'), got: {round_end}"

@@ -100,7 +100,6 @@ class Meld:
 
     @staticmethod
     def chow(meld: Array) -> Array:
-        is_emp = Meld.is_empty(meld)
         action = Meld.action(meld)
         is_chi = Meld.is_chi(meld)
         pos = Meld.target(meld) - Meld._chi_index(action)

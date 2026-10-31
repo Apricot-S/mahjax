@@ -146,7 +146,8 @@ def make_eval_fn(env: Env, num_eval_envs: int, max_steps: int = 200):
                 player_hands = (n_hands[:, None] * mf).sum()
                 player_ryuu = (n_ryuu[:, None] * mf).sum()
                 n_seats = mf.sum()
-                w = lambda k: (stats[k].astype(jnp.float32) * mf).sum()
+                def w(k):
+                    return (stats[k].astype(jnp.float32) * mf).sum()
                 return {
                     f"{prefix}/hora_rate":           safe_div(w("won"),         player_hands),
                     f"{prefix}/deal_in_rate":        safe_div(w("dealt_in"),    player_hands),

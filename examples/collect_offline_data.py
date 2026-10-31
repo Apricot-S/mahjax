@@ -6,17 +6,17 @@ Optimized for memory efficiency (Small chunks).
 """
 import os
 import pickle
-import time
 
 import jax
 import numpy as np
-from common import attach_dataset_metadata, default_dataset_path, get_rule_based_player
 from omegaconf import OmegaConf
 from pydantic import BaseModel
 from tqdm import tqdm
 
 import mahjax
 from mahjax.wrappers.auto_reset_wrapper import auto_reset
+
+from common import attach_dataset_metadata, default_dataset_path, get_rule_based_player
 
 
 # --- Config ---
@@ -128,7 +128,6 @@ def main():
     num_chunks = (cfg.num_samples + chunk_size - 1) // chunk_size
 
     total_steps = 0
-    start_time = time.time()
 
     # Carry for continuity (from the previous chunk)
     # In a full offline RL dataset creation, calculations across episode boundaries are required, but here we simplify it by calculating within a chunk or treating it as a sufficiently long episode.
@@ -174,7 +173,8 @@ def main():
 
     # Save
     print("Concatenating data...", flush=True)
-    if not data_obs: return
+    if not data_obs:
+        return
 
     keys = data_obs[0].keys()
     full_obs = {k: np.concatenate([d[k] for d in data_obs], axis=0) for k in keys}
